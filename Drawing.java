@@ -8,6 +8,7 @@ import java.applet.Applet;
 class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     // ここに描いた軌跡を保存していく
     ArrayList<Line2D> layers = new ArrayList<Line2D>();
+    ArrayList<Graphics> graphics = new ArrayList<Graphics>();
     // モード
     public static final int FREE = 0;
     public static final int LINE = 1;
@@ -31,6 +32,9 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	    break;
 	}
     }
+    public void setForegroundColor(Color color){
+	setForeground(color);
+    }
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseClicked(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) {}
@@ -42,6 +46,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	    x1 = e.getX();
 	    y1 = e.getY();
 	    layers.add(new Line2D.Double(x1,y1,x1,y1));
+	    graphics.add(getGraphics());
 	    paint(getGraphics());
 	    break;
 	case LINE:
@@ -57,6 +62,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	switch(mode) {
 	case LINE:
 	    layers.add(new Line2D.Double(x1,y1,e.getX(),e.getY()));
+	    graphics.add(getGraphics());
 	    x2 = x3 = -1;   // ラバーバンド描画消去処理を通らないように
 	    break;
 	case FREE:
@@ -71,6 +77,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	switch(mode) {
 	case FREE:  
 	    layers.add(new Line2D.Double(x1,y1,e.getX(),e.getY()));
+	    graphics.add(getGraphics());
 	    x1 = e.getX();    // これが新たな始点
 	    y1 = e.getY();
 	    break;
@@ -88,7 +95,8 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     public void paint(Graphics g) {
 	for(int i = 0; i < layers.size() ;i++ ) {
 	    Line2D data = (Line2D)layers.get(i);
-	    g.drawLine((int)data.getX1(),(int)data.getY1(),(int)data.getX2(),(int)data.getY2());
+	    Graphics gtest = (Graphics)graphics.get(i);
+	    gtest.drawLine((int)data.getX1(),(int)data.getY1(),(int)data.getX2(),(int)data.getY2());
     	}
 	if (mode == LINE) {
 	    g.setColor(getBackground());
@@ -117,8 +125,11 @@ class MyJFrame extends JFrame {
 }
 
 class OperationPanel extends JPanel implements ActionListener {
+    JButton button;
     DrawPanel drawPanel;
     OperationPanel() {
+	button = new JButton("choose color");
+	button.addActionListener(this);
 	MyJFrame frame = new MyJFrame();
         drawPanel = new DrawPanel();
 	drawPanel.setBackground(Color.PINK);
@@ -137,6 +148,7 @@ class OperationPanel extends JPanel implements ActionListener {
 	this.setLayout(new GridLayout(2,1));
 	this.add(free);
 	this.add(line);
+	this.add(button);
 
 	frame.getContentPane().add(drawPanel,BorderLayout.WEST);
 	frame.getContentPane().add(this,BorderLayout.EAST);
@@ -145,8 +157,14 @@ class OperationPanel extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent e) {
 	if(e.getActionCommand() == "FREE"){
 	    drawPanel.setDrawMode(0);
-	}else
+	}else if(e.getActionCommand() == "LINE"){
 	    drawPanel.setDrawMode(1);
+	}else{
+	    JColorChooser colorchooser = new JColorChooser();
+	    
+	    Color color = colorchooser.showDialog(this,"choose a color",Color.red);
+	    drawPanel.setForegroundColor(color);
+        }
     }
 }
 
