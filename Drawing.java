@@ -14,18 +14,20 @@ class LineInfo {
     private Point end;
     private Color color;
     private float stroke;
+    private boolean flag;
     
-    LineInfo(int x1, int y1, int x2, int y2,Color c,float f) {
+    LineInfo(int x1, int y1, int x2, int y2,Color c,float s,boolean f) {
 	start = new Point();
 	end = new Point();
 	color = new Color(c.getRed(),c.getGreen(),c.getBlue(),c.getAlpha());
+	flag = f;
 	
 	start.x = x1;
 	start.y = y1;
 	end.x = x2;
 	end.y = y2;
 
-	stroke = f;
+	stroke = s;
     }
     public int getStartX() {
 	return start.x;
@@ -44,6 +46,9 @@ class LineInfo {
     }	
     public float getStroke() {
 	return stroke;
+    }
+    public boolean getFlag() {
+	return flag;
     }
 }
 
@@ -82,11 +87,25 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	    break;
 	}
     }
-    public void setForegroundColor(Color color){
+    public void setForegroundColor(Color color) {
 	setForeground(color);
     }
     public void setStroke(float f){
 	stroke = f;
+    }
+    public void undo() {
+	if(layers.size() > 0){
+	    layers.remove(layers.size()-1);
+	    for(int i = layers.size()-1; i >= 0; i--){
+		LineInfo data = (LineInfo)layers.get(i);
+		layers.remove(i);
+		if(data.getFlag()) {
+		    break;
+		}
+	    }
+	    paint(getGraphics());
+	}
+	System.out.println(layers.size());
     }
     @Override public void paintComponent(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
@@ -114,7 +133,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	case FREE:
 	    x1 = e.getX();
 	    y1 = e.getY();
-	    layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke));
+	    layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke,true));
 	    paint(getGraphics());
 	    break;
 	case LINE:
@@ -129,7 +148,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     @Override public void mouseReleased(MouseEvent e) {
 	switch(mode) {
 	case LINE:
-	    layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke));
+	    layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,true));
 	    x2 = x3 = -1;   // ラバーバンド描画消去処理を通らないように
 	    break;
 	case FREE:
@@ -143,7 +162,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	
 	switch(mode) {
 	case FREE:
-	    layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke));
+	    layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,false));
 	    x1 = e.getX();    // これが新たな始点
 	    y1 = e.getY();
 	    break;
@@ -167,7 +186,6 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	    g2d.setColor(data.getColor());
 	    g2d.setStroke(new BasicStroke(data.getStroke(),1,1));
 	    g2d.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
-	    //g2d.drawImage(img, 10, 10, this);
     	}
 	if (mode == LINE) {
 	    g.setColor(getBackground());
@@ -222,13 +240,15 @@ class MyJFrame extends JFrame {
 
 // 主に操作パネル。
 class OperationPanel extends JPanel implements ActionListener,ChangeListener {
-    JButton button;
+    JButton color;
+    JButton undo;
     DrawPanel drawPanel;
     JSlider slider;
     OperationPanel() {
 	// 色選択ボタン
-	button = new JButton("COLOR");
-	button = new JButton("UNDO");
+	color = new JButton("COLOR");
+	//undoボタン
+	undo= new JButton("UNDO");
 	// モードの選択
 	JRadioButton free = new JRadioButton("FREE",true);
 	JRadioButton line = new JRadioButton("LINE");
@@ -239,7 +259,8 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	group.add(free);
 	group.add(line);
 	// ボタンの反応をつける
-	button.addActionListener(this);
+	color.addActionListener(this);
+	undo.addActionListener(this);
 	free.addActionListener(this);
 	line.addActionListener(this);
 	slider.addChangeListener(this);
@@ -249,26 +270,29 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	drawPanel.setBackground(Color.PINK);
 	drawPanel.setPreferredSize(new Dimension(600, 600));
 	
-	this.setLayout(new GridLayout(4,1));
+	this.setLayout(new GridLayout(5,1));
 	this.add(free);
 	this.add(line);
-	this.add(button);
+	this.add(color);
 	this.add(slider);
+	this.add(undo);
 	
 	frame.getContentPane().add(drawPanel,BorderLayout.WEST);
 	frame.getContentPane().add(this,BorderLayout.EAST);
 	frame.setVisible(true);	
     }
     @Override public void actionPerformed(ActionEvent e) {
-	if(e.getActionCommand() == "FREE"){        // FREE描画モード
+	if(e.getActionCommand() == "FREE") {        // FREE描画モード
 	    drawPanel.setDrawMode(0);
-	}else if(e.getActionCommand() == "LINE"){  // LINE描画モード
+	}else if(e.getActionCommand() == "LINE") {  // LINE描画モード
 	    drawPanel.setDrawMode(1);
-	}else if(e.getActionCommand() == "COLOR"){ // 色を選ぶとき
+	}else if(e.getActionCommand() == "COLOR") { // 色を選ぶとき
 	    JColorChooser colorchooser = new JColorChooser();
 	    Color color = colorchooser.showDialog(this,"Choose a color!",Color.black);
 	    drawPanel.setForegroundColor(color);
-        }
+        }else if(e.getActionCommand() == "UNDO") { // undo機能
+	    drawPanel.undo();
+	}
     }
     @Override public void stateChanged(ChangeEvent e) {
         drawPanel.setStroke(slider.getValue());
