@@ -110,18 +110,39 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     @Override public void paintComponent(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
 	
-        double imageWidth = image.getWidth();
-        double imageHeight = image.getHeight();
-        double panelWidth = this.getWidth();
-        double panelHeight = this.getHeight();
+        int imageWidth = image.getWidth();
+        int imageHeight = image.getHeight();
+        int panelWidth = this.getWidth();
+        int panelHeight = this.getHeight();
 	
         // 画像がコンポーネントの何倍の大きさか計算
-        double sx = (panelWidth / imageWidth);
-        double sy = (panelHeight / imageHeight);
+        int iW = (panelWidth * imageHeight / imageWidth);
+        int iH = (panelHeight * imageWidth / imageHeight);
+
+	if(panelWidth < panelHeight){
+	    if(panelHeight > imageHeight){
+		g2d.drawImage(image, 0, 0, panelWidth, iW, this);
+		System.out.println("1");
+	    }else{
+		g2d.drawImage(image, 0, 0, iH, panelHeight, this);
+		System.out.println("2");
+	    }
+	}else if(panelWidth > panelHeight){
+	    if(panelHeight > imageHeight){
+		g2d.drawImage(image, 0, 0, panelWidth, iW, this);
+		System.out.println("3");
+	    }else{
+		g2d.drawImage(image, 0, 0, iH, panelHeight, this);
+		System.out.println("4");
+		System.out.println(panelHeight + "," + imageHeight);
+	    }
+	}
 	
         // スケーリング
-        AffineTransform af = AffineTransform.getScaleInstance(sx, sy);
-        g2d.drawImage(image, af, this);
+        //AffineTransform af = AffineTransform.getScaleInstance(sx, sy);
+        //g2d.drawImage(image, af, this);
+	
+	//g2d.drawImage(image, 0, 0, 100, 10, this);
     }
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseClicked(MouseEvent e) {}
@@ -200,35 +221,6 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     }
 }
 
-class ImagePanel extends JPanel {
-    // 描画する画像
-    private BufferedImage image;
-    
-    public ImagePanel(String path) {
-        try {
-            this.image = ImageIO.read(getClass().getResource(path));
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            this.image = null;
-        }
-    }
-    @Override public void paintComponent(Graphics g) {
-        Graphics2D g2d = (Graphics2D) g;
-	
-        double imageWidth = image.getWidth();
-        double imageHeight = image.getHeight();
-        double panelWidth = this.getWidth();
-        double panelHeight = this.getHeight();
-	
-        // 画像がコンポーネントの何倍の大きさか計算
-        double sx = (panelWidth / imageWidth);
-        double sy = (panelHeight / imageHeight);
-	
-        // スケーリング
-        AffineTransform af = AffineTransform.getScaleInstance(sx, sy);
-        g2d.drawImage(image, af, this);
-    }
-}
 
 class MyJFrame extends JFrame {
     MyJFrame() {
@@ -245,6 +237,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
     DrawPanel drawPanel;
     JSlider slider;
     OperationPanel() {
+	setBackground(Color.PINK);
 	// 色選択ボタン
 	color = new JButton("COLOR");
 	//undoボタン
@@ -267,7 +260,6 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	
 	MyJFrame frame = new MyJFrame();
         drawPanel = new DrawPanel();
-	drawPanel.setBackground(Color.PINK);
 	drawPanel.setPreferredSize(new Dimension(600, 600));
 	
 	this.setLayout(new GridLayout(5,1));
