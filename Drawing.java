@@ -6,7 +6,8 @@ import java.util.*;
 import javax.swing.event.*;
 import java.awt.image.*;
 import java.io.*;
-import javax.imageio.ImageIO;
+import javax.imageio.*;
+import javax.imageio.stream.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 // 線の情報を持つクラス
@@ -115,6 +116,32 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		}
 	}
 
+	// clear機能
+	public void clear() {
+		layers.clear();
+		repaint();
+	}
+
+	// save機能
+	public void save() {  
+		try {  
+			FileOutputStream os = new FileOutputStream("out.jpg");;  
+			ImageOutputStream ios = null;  
+  
+			Iterator writers=ImageIO.getImageWritersByFormatName("jpeg");  
+			ImageWriter writer=(ImageWriter)writers.next();  
+  
+			ImageIO.setUseCache(false);  
+  
+			ios = ImageIO.createImageOutputStream(os);  
+			writer.setOutput(ios);
+			writer.write(image);
+		}  
+		catch(Exception e) {
+			System.out.println("saveでエラー:" + e);
+		}
+	}
+
 	// 写真の読み込み
 	public void open() {
 		JFileChooser fc = new JFileChooser();
@@ -131,6 +158,12 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     		}
     	}
     	repaint();
+	}
+
+	// 読み込んだ写真を消す
+	public void noopen() {
+		this.image = null;
+		repaint();
 	}
 
 	@Override public void paintComponent(Graphics g) {
@@ -263,41 +296,75 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 
 	// コンストラクタ
 	OperationPanel(DrawPanel panel) {
-		setBackground(Color.PINK);
 		drawPanel = panel;
 
 		// 色選択ボタン
 		JButton color = new JButton("COLOR");
+		color.setPreferredSize(new Dimension(160, 40));
+
 		// undoボタン
 		JButton undo = new JButton("UNDO");
+		undo.setPreferredSize(new Dimension(160, 30));
+		JButton clear = new JButton("CLEAR");
+		clear.setPreferredSize(new Dimension(160, 30));
+
+		// saveボタン
+		JButton save = new JButton("SAVE");
+		save.setPreferredSize(new Dimension(160, 60));
+
 		// 画像選択
 		JButton photo = new JButton("PHOTO");
+		photo.setPreferredSize(new Dimension(80, 100));
+		JButton nophoto = new JButton("NOPHOTO");
+		nophoto.setPreferredSize(new Dimension(80, 100));
+
 		// モードの選択
 		JRadioButton free = new JRadioButton("FREE",true);
+		free.setMargin(new Insets(50, 0, 0, 0));
 		JRadioButton line = new JRadioButton("LINE");
-		// 太さの変更
-		slider = new JSlider(1,50,1);
-
+		line.setMargin(new Insets(10, 0, 20, 0));
 		// グループの作成
 		ButtonGroup group = new ButtonGroup();
 		group.add(free);
 		group.add(line);
 
+		// 太さの変更
+		slider = new JSlider(1,50,1);
+
 		// ボタンの反応をつける
 		color.addActionListener(this);
 		undo.addActionListener(this);
+		clear.addActionListener(this);
+		save.addActionListener(this);
 		photo.addActionListener(this);
+		nophoto.addActionListener(this);
 		free.addActionListener(this);
 		line.addActionListener(this);
 		slider.addChangeListener(this);
 	
-		this.setLayout(new GridLayout(6,1));
-		this.add(free);
-		this.add(line);
-		this.add(color);
-		this.add(slider);
-		this.add(undo);
-		this.add(photo);
+		JPanel panel1 = new JPanel();
+		JPanel panel2 = new JPanel();
+		JPanel panel3 = new JPanel();
+
+		panel1.setLayout(new GridLayout(4,1));
+		panel1.add(free);
+		panel1.add(line);
+		panel1.add(color);
+		panel1.add(slider);
+
+		panel2.setLayout(new FlowLayout());
+		panel2.add(photo);
+		panel2.add(nophoto);
+
+		panel3.setLayout(new GridLayout(3,1));
+		panel3.add(undo);
+		panel3.add(clear);
+		panel3.add(save);
+
+		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
+		this.add(panel1);
+		this.add(panel2);
+		this.add(panel3);
 	}
 	// 反応をつける
 	@Override public void actionPerformed(ActionEvent e) {
@@ -313,7 +380,13 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 			drawPanel.undo();
 		}else if(e.getActionCommand() == "PHOTO") {		// 写真選択
 			drawPanel.open();
-		}
+		}else if(e.getActionCommand() == "NOPHOTO") {
+			drawPanel.noopen();
+		}else if(e.getActionCommand() == "SAVE") {
+			drawPanel.save();
+		}else if(e.getActionCommand() == "CLEAR") {
+			drawPanel.clear();
+		}	
 	}
 	@Override public void stateChanged(ChangeEvent e) {
 		drawPanel.setStroke(slider.getValue());
@@ -332,5 +405,5 @@ public class Drawing {
 		frame.getContentPane().add(operationPanel,BorderLayout.EAST);
 		frame.setVisible(true);	
 	}
-	
+
 }
