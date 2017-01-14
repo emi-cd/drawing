@@ -262,8 +262,9 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	JSlider slider;
 
 	// コンストラクタ
-	OperationPanel() {
+	OperationPanel(DrawPanel panel) {
 		setBackground(Color.PINK);
+		drawPanel = panel;
 
 		// 色選択ボタン
 		JButton color = new JButton("COLOR");
@@ -290,10 +291,6 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		line.addActionListener(this);
 		slider.addChangeListener(this);
 	
-		MyJFrame frame = new MyJFrame();
-		drawPanel = new DrawPanel();
-		drawPanel.setPreferredSize(new Dimension(600, 600));
-	
 		this.setLayout(new GridLayout(6,1));
 		this.add(free);
 		this.add(line);
@@ -301,10 +298,6 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		this.add(slider);
 		this.add(undo);
 		this.add(photo);
-	
-		frame.getContentPane().add(drawPanel,BorderLayout.CENTER);
-		frame.getContentPane().add(this,BorderLayout.EAST);
-		frame.setVisible(true);	
 	}
 	// 反応をつける
 	@Override public void actionPerformed(ActionEvent e) {
@@ -331,6 +324,13 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 // メインのクラス
 public class Drawing {
 	public static void main(String[] args) {
-	OperationPanel operationPanel = new  OperationPanel();
+		MyJFrame frame = new MyJFrame();
+		DrawPanel drawPanel = new DrawPanel();
+		OperationPanel operationPanel = new OperationPanel(drawPanel);
+
+		frame.getContentPane().add(drawPanel,BorderLayout.CENTER);
+		frame.getContentPane().add(operationPanel,BorderLayout.EAST);
+		frame.setVisible(true);	
 	}
+	
 }
