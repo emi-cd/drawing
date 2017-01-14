@@ -3,8 +3,11 @@ import java.awt.*;
 import java.awt.geom.*;
 import java.awt.event.*;
 import java.util.*;
-//import java.applet.Applet;
 import javax.swing.event.*;
+import java.awt.image.*;
+
+import java.io.*;
+import javax.imageio.ImageIO;
 
 class LineInfo {
     private Point start;
@@ -55,10 +58,18 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     int x2,y2;    // 終点
     int x3,y3;    // 前の終点
     float stroke;
+    private BufferedImage image;
     // コンストラクタ
     DrawPanel(){
 	addMouseMotionListener(this);
 	addMouseListener(this);
+
+        try {
+            this.image = ImageIO.read(getClass().getResource("test.jpg"));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            this.image = null;
+        }
     }
     // モードの選択
     public void setDrawMode(int mode) {
@@ -76,6 +87,22 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     }
     public void setStroke(float f){
 	stroke = f;
+    }
+    @Override public void paintComponent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+	
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+        double panelWidth = this.getWidth();
+        double panelHeight = this.getHeight();
+	
+        // 画像がコンポーネントの何倍の大きさか計算
+        double sx = (panelWidth / imageWidth);
+        double sy = (panelHeight / imageHeight);
+	
+        // スケーリング
+        AffineTransform af = AffineTransform.getScaleInstance(sx, sy);
+        g2d.drawImage(image, af, this);
     }
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseClicked(MouseEvent e) {}
@@ -132,13 +159,15 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	paint(getGraphics());
     }
     public void paint(Graphics g) {
-	super.paintComponent(g);
+	Image img = getToolkit().getImage("test.jpg");
+	this.paintComponent(g);
 	Graphics2D g2d = (Graphics2D)g;
 	for(int i = 0; i < layers.size() ;i++ ) {
 	    LineInfo data = (LineInfo)layers.get(i);
 	    g2d.setColor(data.getColor());
 	    g2d.setStroke(new BasicStroke(data.getStroke(),1,1));
 	    g2d.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
+	    //g2d.drawImage(img, 10, 10, this);
     	}
 	if (mode == LINE) {
 	    g.setColor(getBackground());
@@ -153,14 +182,42 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
     }
 }
 
+class ImagePanel extends JPanel {
+    // 描画する画像
+    private BufferedImage image;
+    
+    public ImagePanel(String path) {
+        try {
+            this.image = ImageIO.read(getClass().getResource(path));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            this.image = null;
+        }
+    }
+    @Override public void paintComponent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+	
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+        double panelWidth = this.getWidth();
+        double panelHeight = this.getHeight();
+	
+        // 画像がコンポーネントの何倍の大きさか計算
+        double sx = (panelWidth / imageWidth);
+        double sy = (panelHeight / imageHeight);
+	
+        // スケーリング
+        AffineTransform af = AffineTransform.getScaleInstance(sx, sy);
+        g2d.drawImage(image, af, this);
+    }
+}
 
 class MyJFrame extends JFrame {
     MyJFrame() {
 	setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	setBounds(200,200,800,600);
 	setVisible(true);
-    }
-  
+    }   
 }
 
 // 主に操作パネル。
@@ -171,6 +228,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
     OperationPanel() {
 	// 色選択ボタン
 	button = new JButton("COLOR");
+	button = new JButton("UNDO");
 	// モードの選択
 	JRadioButton free = new JRadioButton("FREE",true);
 	JRadioButton line = new JRadioButton("LINE");
