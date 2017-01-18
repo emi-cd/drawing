@@ -9,6 +9,7 @@ import java.io.*;
 import javax.imageio.*;
 import javax.imageio.stream.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.math.BigDecimal;
 
 // 線の情報を持つクラス
 class LineInfo {
@@ -71,12 +72,15 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	float stroke;	// 線の太さ
 
 	private BufferedImage image;
+	File f;
+	JFrame frame;
 
 	// コンストラクタ
-	DrawPanel(){
+	DrawPanel(MyJFrame f){
 		addMouseMotionListener(this);
 		addMouseListener(this);
 		this.image = null;
+		frame = f;
 	}
 
 	// モードの選択
@@ -104,7 +108,6 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	// undo機能
 	public void undo() {
 		if(layers.size() > 0){
-			layers.remove(layers.size()-1);
 			for(int i = layers.size()-1; i >= 0; i--){
 				LineInfo data = (LineInfo)layers.get(i);
 				layers.remove(i);
@@ -122,42 +125,95 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		repaint();
 	}
 
-	// save機能
-	public void save() {  
-		try {  
-			FileOutputStream os = new FileOutputStream("out.jpg");;  
-			ImageOutputStream ios = null;  
-  
-			Iterator writers=ImageIO.getImageWritersByFormatName("jpeg");  
-			ImageWriter writer=(ImageWriter)writers.next();  
-  
-			ImageIO.setUseCache(false);  
-  
-			ios = ImageIO.createImageOutputStream(os);  
-			writer.setOutput(ios);
-			writer.write(image);
-		}  
-		catch(Exception e) {
-			System.out.println("saveでエラー:" + e);
+	public BufferedImage reSize(BufferedImage image, int maxWidth, int maxHeight) {
+		// 縮小比率の計算
+		BigDecimal bdW = new BigDecimal(maxWidth);
+		bdW = bdW.divide(new BigDecimal(image.getWidth()), 8, BigDecimal.ROUND_HALF_UP);
+		BigDecimal bdH = new BigDecimal(maxHeight);
+		bdH = bdH.divide(new BigDecimal(image.getHeight()), 8, BigDecimal.ROUND_HALF_UP);
+		// 縦横比は変えずに最大幅、最大高さを超えないように比率を指定する
+		if (bdH.compareTo(bdW) < 0) {
+			maxHeight = -1;
 		}
+		else {
+			maxWidth = -1;
+		}
+
+		// Image -> BufferedImageの変換
+		BufferedImage thumb = new BufferedImage(getWidth(), getHeight(), image.getType());
+		thumb.getGraphics().drawImage(image.getScaledInstance(maxWidth, maxHeight, Image.SCALE_SMOOTH), 0, 0, null);
+		return thumb;
+	}
+
+
+	// 画像を保存
+	public void saveImage(){
+		BufferedImage readImage = null;
+		boolean flag = false;
+
+		if(image != null){
+			try {
+				// readImage = ImageIO.read(new File(f.getPath()));
+				readImage = reSize(ImageIO.read(new File(f.getPath())),getWidth(),getHeight());
+			} catch (Exception e) {
+				e.printStackTrace();
+				readImage = null;
+			}
+		}
+
+		if (readImage == null){
+			readImage = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_BGR);
+			flag = true;
+		}
+		
+		Graphics2D off = readImage.createGraphics();
+		if(flag){
+			off.setBackground(Color.WHITE);
+			off.clearRect(0, 0, getWidth(), getHeight());
+		}
+
+		for(int i = 0; i < layers.size() ;i++ ) {
+			LineInfo data = (LineInfo)layers.get(i);
+			off.setColor(data.getColor());
+			off.setStroke(new BasicStroke(data.getStroke(),1,1));
+			off.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
+		}
+
+		String path = null;  
+		FileDialog fd = new FileDialog(frame , "名前を付けて保存" , FileDialog.SAVE);  
+		try{  
+			fd.setVisible(true);  
+			if (fd.getFile() != null) {  
+				path = fd.getDirectory() + fd.getFile();  
+			}  
+		}finally{  
+			fd.dispose();  
+		}  
+		if (path != null){  
+			try {
+				boolean result = ImageIO.write(readImage, "jpg", new File(path));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}  		
 	}
 
 	// 写真の読み込み
-	public void open() {
+	public void openImage() {
 		JFileChooser fc = new JFileChooser();
 		// 画像ファイルの拡張子を設定
 		fc.setFileFilter(new FileNameExtensionFilter("画像ファイル", "png", "jpg","Jpeg", "GIF", "bmp"));
 		// ファイル選択ダイアログを表示、戻り値がAPPROVE_OPTIONの場合、画像ファイルを開く
 		if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-			File f = fc.getSelectedFile();
+			f = fc.getSelectedFile();
 			try {
 				this.image = ImageIO.read(new File(f.getPath()));
 			} catch (IOException ex) {
 				ex.printStackTrace();
 				this.image = null;
-    		}
-    	}
-    	repaint();
+			}
+		}
+		repaint();
 	}
 
 	// 読み込んだ写真を消す
@@ -168,7 +224,8 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 
 	@Override public void paintComponent(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
-	
+		g2d.setBackground(Color.WHITE);
+
 		if(image != null){
 			int imageWidth = image.getWidth();
 			int imageHeight = image.getHeight();
@@ -229,7 +286,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 				x2 = x3 = -1;					// ラバーバンド描画消去処理を通らないように
 				break;
 			case FREE:
-				default:
+			default:
 				break;
 		}
 		repaint();
@@ -260,6 +317,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	@Override public void paint(Graphics g) {
 		this.paintComponent(g);
 		Graphics2D g2d = (Graphics2D)g;
+
 		for(int i = 0; i < layers.size() ;i++ ) {
 			LineInfo data = (LineInfo)layers.get(i);
 			g2d.setColor(data.getColor());
@@ -278,6 +336,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 			}
 		}
 	}
+
 }
 
 // フレーム
@@ -300,17 +359,15 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 
 		// 色選択ボタン
 		JButton color = new JButton("COLOR");
-		color.setPreferredSize(new Dimension(160, 40));
 
 		// undoボタン
 		JButton undo = new JButton("UNDO");
-		undo.setPreferredSize(new Dimension(160, 30));
+		undo.setPreferredSize(new Dimension(80, 100));
 		JButton clear = new JButton("CLEAR");
-		clear.setPreferredSize(new Dimension(160, 30));
+		clear.setPreferredSize(new Dimension(80, 100));
 
 		// saveボタン
 		JButton save = new JButton("SAVE");
-		save.setPreferredSize(new Dimension(160, 60));
 
 		// 画像選択
 		JButton photo = new JButton("PHOTO");
@@ -345,6 +402,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		JPanel panel1 = new JPanel();
 		JPanel panel2 = new JPanel();
 		JPanel panel3 = new JPanel();
+		JPanel panel4 = new JPanel();
 
 		panel1.setLayout(new GridLayout(4,1));
 		panel1.add(free);
@@ -356,15 +414,18 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		panel2.add(photo);
 		panel2.add(nophoto);
 
-		panel3.setLayout(new GridLayout(3,1));
+		panel3.setLayout(new FlowLayout());
 		panel3.add(undo);
 		panel3.add(clear);
-		panel3.add(save);
+
+		panel4.setLayout(new GridLayout(1,1));
+		panel4.add(save);
 
 		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
 		this.add(panel1);
 		this.add(panel2);
 		this.add(panel3);
+		this.add(panel4);
 	}
 	// 反応をつける
 	@Override public void actionPerformed(ActionEvent e) {
@@ -379,13 +440,16 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		}else if(e.getActionCommand() == "UNDO") {		// undo機能
 			drawPanel.undo();
 		}else if(e.getActionCommand() == "PHOTO") {		// 写真選択
-			drawPanel.open();
+			drawPanel.openImage();
 		}else if(e.getActionCommand() == "NOPHOTO") {
 			drawPanel.noopen();
 		}else if(e.getActionCommand() == "SAVE") {
-			drawPanel.save();
+			drawPanel.saveImage();
 		}else if(e.getActionCommand() == "CLEAR") {
-			drawPanel.clear();
+			int option = JOptionPane.showConfirmDialog(this, "clearすると元に戻りません。","Clear", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (option == JOptionPane.YES_OPTION){
+				drawPanel.clear();
+			}
 		}	
 	}
 	@Override public void stateChanged(ChangeEvent e) {
@@ -398,7 +462,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 public class Drawing {
 	public static void main(String[] args) {
 		MyJFrame frame = new MyJFrame();
-		DrawPanel drawPanel = new DrawPanel();
+		DrawPanel drawPanel = new DrawPanel(frame);
 		OperationPanel operationPanel = new OperationPanel(drawPanel);
 
 		frame.getContentPane().add(drawPanel,BorderLayout.CENTER);
