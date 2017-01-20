@@ -11,6 +11,7 @@ import javax.imageio.stream.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.math.BigDecimal;
 
+
 // 線の情報を持つクラス
 class LineInfo {
 	private Point start = new Point();
@@ -19,7 +20,7 @@ class LineInfo {
 	private float stroke;
 	private boolean flag;			// 線の始点終点を判断する
 	private String text = null;
-	private String imgInfo;
+	private BufferedImage stamp = null;
 	
 	// コンストラクタ
 	// 線
@@ -47,16 +48,21 @@ class LineInfo {
 		flag = f;
 	}
 	// スタンプ
-	LineInfo(int x1, int y1, int x2, int y2, String img, boolean f){
+	LineInfo(int x1, int y1, int x2, int y2, String path, boolean f){
 		start.x = x1;
 		start.y = y1;
 		end.x = x2;
 		end.y = y2;
+		try {
+			stamp = ImageIO.read(new File(path));
+		} catch (IOException ex) {
+			ex.printStackTrace();
+			stamp = null;
+		}
 
-
-		imgInfo = imgInfo;
 		flag = f;
 	}
+
 	// 以下、getシリーズ
 	public int getStartX() {
 		return start.x;
@@ -82,6 +88,10 @@ class LineInfo {
 	public String getText(){
 		return text;
 	}
+	public BufferedImage getStamp(){
+		return stamp;
+	}
+
 }
 
 // 絵を描くパネル
@@ -98,10 +108,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	int x1,y1;
 	int x2,y2;		// 終点
 	int x3,y3;		// 前の終点
+
 	float stroke;	// 線の太さ
 
 	String text;
-	String img;
+	String stamp;			// スタンプ画像のpathを収納
 	boolean flag = true;	// 文字入力
 
 	private BufferedImage image;
@@ -132,11 +143,14 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		}
 	}
 
+	// スタンプのパスをセット
+	public void setStamp(String str) {
+		stamp = "stamp/stamp" + str + ".png";
+	}
+
+	// 書く文字をセット
 	public void setText(String str) {
 		text = str;
-	}
-	public void setImg(String str) {
-		img = str;
 	}
 
 	// 文字の色の設定
@@ -169,6 +183,25 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		repaint();
 	}
 
+	// 写真の読み込み
+	public void openImage() {
+		JFileChooser fc = new JFileChooser();
+		// 画像ファイルの拡張子を設定
+		fc.setFileFilter(new FileNameExtensionFilter("画像ファイル", "png", "jpg","Jpeg", "GIF", "bmp"));
+		// ファイル選択ダイアログを表示、戻り値がAPPROVE_OPTIONの場合、画像ファイルを開く
+		if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+			f = fc.getSelectedFile();
+			try {
+				this.image = ImageIO.read(new File(f.getPath()));
+			} catch (IOException ex) {
+				ex.printStackTrace();
+				this.image = null;
+			}
+		}
+		repaint();
+	}
+
+	// 写真サイズの変更
 	public BufferedImage reSize(BufferedImage image, int maxWidth, int maxHeight) {
 		// 縮小比率の計算
 		BigDecimal bdW = new BigDecimal(maxWidth);
@@ -188,7 +221,6 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		thumb.getGraphics().drawImage(image.getScaledInstance(maxWidth, maxHeight, Image.SCALE_SMOOTH), 0, 0, null);
 		return thumb;
 	}
-
 
 	// 画像を保存
 	public void saveImage(){
@@ -218,7 +250,9 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		for(int i = 0; i < layers.size() ;i++ ) {
 			LineInfo data = (LineInfo)layers.get(i);
 			off.setColor(data.getColor());
-			if(data.getText() == null){
+			if(data.getStamp() != null) {
+				off.drawImage(data.getStamp(),data.getStartX(), data.getStartY(), this);
+			} else if(data.getText() == null){
 				off.setStroke(new BasicStroke(data.getStroke(),1,1));
 				off.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
@@ -247,27 +281,103 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		}  		
 	}
 
-	// 写真の読み込み
-	public void openImage() {
-		JFileChooser fc = new JFileChooser();
-		// 画像ファイルの拡張子を設定
-		fc.setFileFilter(new FileNameExtensionFilter("画像ファイル", "png", "jpg","Jpeg", "GIF", "bmp"));
-		// ファイル選択ダイアログを表示、戻り値がAPPROVE_OPTIONの場合、画像ファイルを開く
-		if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-			f = fc.getSelectedFile();
-			try {
-				this.image = ImageIO.read(new File(f.getPath()));
-			} catch (IOException ex) {
-				ex.printStackTrace();
-				this.image = null;
-			}
+	// 読み込んだ写真を消す
+	public void noopen() {
+		this.image = null;
+		repaint();
+	}
+
+	@Override public void mouseEntered(MouseEvent e) {}
+	@Override public void mouseClicked(MouseEvent e) {}
+	@Override public void mouseExited(MouseEvent e) {}
+	@Override public void mouseMoved(MouseEvent e) {}
+
+	// マウスが押された時
+	@Override public void mousePressed(MouseEvent e) {
+	e.consume();
+	switch(mode) {
+		case FREE:
+			x1 = e.getX();
+			y1 = e.getY();
+			layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke,true));
+			repaint();
+			break;
+		case LINE:
+			x1 = e.getX();
+			y1 = e.getY();
+			x2 = -1;							// フラグ代わり
+			break;								// ラバーバンド描画処理を通るように
+		case TEXT:
+			x1 = e.getX();
+			y1 = e.getY();
+			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, stroke, true));
+			flag = true;
+			repaint();
+			break;
+		case STAMP:
+			x1 = e.getX();
+			y1 = e.getY();
+			layers.add(new LineInfo(x1, y1, x1, y1, stamp, true));
+			flag = true;
+			repaint();
+			break;
+		default:
+			break;
+		}
+	}
+
+	// マウスが離れた時
+	@Override public void mouseReleased(MouseEvent e) {
+		switch(mode) {
+			case LINE:
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), stroke, true));
+				x2 = x3 = -1;					// ラバーバンド描画消去処理を通らないように
+				break;
+			case TEXT:
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text,stroke, true));
+				flag = false;
+				break;
+			case STAMP:
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), stamp, true));
+				flag = false;
+				break;
+			case FREE:
+			default:
+				break;
 		}
 		repaint();
 	}
 
-	// 読み込んだ写真を消す
-	public void noopen() {
-		this.image = null;
+	// マウスがドラッグされている時
+	@Override public void mouseDragged(MouseEvent e) {
+		e.consume();	
+		switch(mode) {
+			case FREE:
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,false));
+				x1 = e.getX();					// これが新たな始点
+				y1 = e.getY();
+				break;
+			case LINE:
+				x3 = x2;
+				y3 = y2;
+				x2 = e.getX();					// 終点
+				y2 = e.getY();
+				break;
+			case TEXT:
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, stroke, false));
+				flag = true;
+				x1 = e.getX();					// これが新たな始点
+				y1 = e.getY();
+				break;
+			case STAMP:
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), stamp, false));
+				flag = true;
+				x1 = e.getX();					// これが新たな始点
+				y1 = e.getY();
+				break;
+			default:
+				break;
+		}
 		repaint();
 	}
 
@@ -301,82 +411,6 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 				}
 			}
 		}
-
-	}
-
-	@Override public void mouseEntered(MouseEvent e) {}
-	@Override public void mouseClicked(MouseEvent e) {}
-	@Override public void mouseExited(MouseEvent e) {}
-	@Override public void mouseMoved(MouseEvent e) {}
-
-	// マウスが押された時
-	@Override public void mousePressed(MouseEvent e) {
-	e.consume();
-	switch(mode) {
-		case FREE:
-			x1 = e.getX();
-			y1 = e.getY();
-			layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke,true));
-			repaint();
-			break;
-		case LINE:
-			x1 = e.getX();
-			y1 = e.getY();
-			x2 = -1;							// フラグ代わり
-			break;								// ラバーバンド描画処理を通るように
-		case TEXT:
-			x1 = e.getX();
-			y1 = e.getY();
-			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, stroke, true));
-			flag = true;
-			repaint();
-		default:
-			break;
-		}
-	}
-
-	// マウスが離れた時
-	@Override public void mouseReleased(MouseEvent e) {
-		switch(mode) {
-			case LINE:
-				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), stroke, true));
-				x2 = x3 = -1;					// ラバーバンド描画消去処理を通らないように
-				break;
-			case TEXT:
-				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text,stroke, true));
-				flag = false;
-			case FREE:
-			default:
-				break;
-		}
-		repaint();
-	}
-
-	// マウスがドラッグされている時
-	@Override public void mouseDragged(MouseEvent e) {
-		e.consume();	
-		switch(mode) {
-			case FREE:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,false));
-				x1 = e.getX();					// これが新たな始点
-				y1 = e.getY();
-				break;
-			case LINE:
-				x3 = x2;
-				y3 = y2;
-				x2 = e.getX();					// 終点
-				y2 = e.getY();
-				break;
-			case TEXT:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, stroke, false));
-				flag = true;
-				x1 = e.getX();					// これが新たな始点
-				y1 = e.getY();
-				break;
-			default:
-				break;
-		}
-		repaint();
 	}
 
 	// ペイント
@@ -387,7 +421,9 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		for(int i = 0; i < layers.size() ;i++ ) {
 			LineInfo data = (LineInfo)layers.get(i);
 			g2d.setColor(data.getColor());
-			if(data.getText() == null){
+			if(data.getStamp() != null) {
+				g2d.drawImage(data.getStamp(),data.getStartX(), data.getStartY(), this);
+			} else if(data.getText() == null){
 				g2d.setStroke(new BasicStroke(data.getStroke(),1,1));
 				g2d.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
@@ -406,7 +442,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 			if (x2 != -1) {						// ボタン押下・ドラッグのときに通る
 				g2d.drawLine(x1,y1,x2,y2);
 			}
-		} else if (mode == TEXT) {
+		} else if (mode == TEXT || mode == STAMP) {
 			if(flag){
 				layers.remove(layers.size()-1);
 			}
@@ -436,10 +472,18 @@ class MyJFrame extends JFrame implements ActionListener {
 
 	menubar.add(file);
     JMenuItem newFile = new JMenuItem("NEW");
+    newFile.setMnemonic(KeyEvent.VK_N);
+    newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
     JMenuItem save = new JMenuItem("SAVE");
+    save.setMnemonic(KeyEvent.VK_S);
+    save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
+    JMenuItem undo = new JMenuItem("UNDO");
+    undo.setMnemonic(KeyEvent.VK_Z);
+    undo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK));
     JMenuItem clear = new JMenuItem("CLEAR");
     file.add(newFile);
     file.add(save);
+    file.add(undo);
     file.add(clear);
 
 	menubar.add(mode);
@@ -447,12 +491,10 @@ class MyJFrame extends JFrame implements ActionListener {
     JRadioButtonMenuItem line = new JRadioButtonMenuItem("LINE");
     JRadioButtonMenuItem text = new JRadioButtonMenuItem("TEXT");
     free.setSelected(true);
-
     ButtonGroup group = new ButtonGroup();
     group.add(free);
     group.add(line);
     group.add(text);
-
     mode.add(free);
     mode.add(line);
     mode.add(text);
@@ -467,24 +509,26 @@ class MyJFrame extends JFrame implements ActionListener {
 
     newFile.addActionListener(this);
 	save.addActionListener(this);
+	undo.addActionListener(this);
 	clear.addActionListener(this);
 	free.addActionListener(this);
 	line.addActionListener(this);
 	text.addActionListener(this);
 	yesPhoto.addActionListener(this);
 	nophoto.addActionListener(this);
-
 	}   
 
 	@Override public void actionPerformed(ActionEvent e) {
 		if(e.getActionCommand() == "SAVE") {
 			drawPanel.saveImage();
+		}else if(e.getActionCommand() == "UNDO") {		// undo機能
+			drawPanel.undo();
 		}else if(e.getActionCommand() == "CLEAR") {
 			int option = JOptionPane.showConfirmDialog(this, "clearすると元に戻りません。","Clear", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 			if (option == JOptionPane.YES_OPTION){
 				drawPanel.clear();
 			}
-		}else if(e.getActionCommand() == "FREE") {			// FREE描画モード
+		}else if(e.getActionCommand() == "FREE") {		// FREE描画モード
 			drawPanel.setDrawMode(0);
 		}else if(e.getActionCommand() == "LINE") {		// LINE描画モード
 			drawPanel.setDrawMode(1);
@@ -505,7 +549,6 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	JSlider slider;
 	SamplePanel samplePanel;
 	JTextField text;
-	JLabel sampleLabel;
 
 	// コンストラクタ
 	OperationPanel(DrawPanel panel) {
@@ -513,9 +556,9 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 
 		// モードの選択
 		JRadioButton free = new JRadioButton("FREE",true);
-		free.setMargin(new Insets(50, 0, 0, 0));
+		free.setMargin(new Insets(10, 0, 0, 0));
 		JRadioButton line = new JRadioButton("LINE");
-		line.setMargin(new Insets(50, 0, 0, 0));
+		line.setMargin(new Insets(10, 0, 0, 0));
 		JRadioButton letter = new JRadioButton("TEXT");
 		letter.setMargin(new Insets(10, 0, 0, 0));
 
@@ -528,10 +571,10 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		// 色選択ボタン
 		JButton color = new JButton("COLOR");
 
-
 		// undoボタン
 		JButton undo = new JButton("UNDO");
 		undo.setPreferredSize(new Dimension(80, 50));
+		
 		// clearボタン
 		JButton clear = new JButton("CLEAR");
 		clear.setPreferredSize(new Dimension(70, 50));
@@ -557,9 +600,8 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		samplePanel = new SamplePanel();
 		JPanel panel2 = new JPanel();
 		JPanel panel3 = new JPanel();
-		sampleLabel = new JLabel("SAMPLE");
 
-		panel1.setLayout(new GridLayout(2,2));
+		panel1.setLayout(new GridLayout(1,3));
 		panel1.add(free);
 		panel1.add(line);
 		panel1.add(letter);
@@ -569,7 +611,6 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		panel2.add(textButton);
 		panel2.add(color);
 		panel2.add(slider);
-		panel2.add(sampleLabel);
 
 		panel3.setLayout(new FlowLayout());
 		panel3.add(undo);
@@ -590,13 +631,15 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		}else if(e.getActionCommand() == "LINE") {		// LINE描画モード
 			drawPanel.setDrawMode(1);
 		}else if(e.getActionCommand() == "TEXT") {		// LINE描画モード
+			if(text.getText() == null){
+				drawPanel.setText("");
+			}
 			drawPanel.setDrawMode(2);
 		}else if(e.getActionCommand() == "COLOR") {		// 色を選ぶとき
 			JColorChooser colorchooser = new JColorChooser();
 			Color color = colorchooser.showDialog(this,"Choose a color!",Color.black);
 			drawPanel.setForegroundColor(color);
 			samplePanel.setColor(color);
-			sampleLabel.setForeground(color);
 		}else if(e.getActionCommand() == "GO"){
 			drawPanel.setDrawMode(2);
 			drawPanel.setText(text.getText());
@@ -613,7 +656,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	@Override public void stateChanged(ChangeEvent e) {
 		drawPanel.setStroke(slider.getValue());
 		samplePanel.setStroke(slider.getValue());
-		sampleLabel.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)slider.getValue()+10));
+		samplePanel.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)slider.getValue()+10));
 	}
 
 }
@@ -625,7 +668,7 @@ class SamplePanel extends JPanel {
 	SamplePanel(){
 		color = Color.BLACK;
 		stroke = 1;
-		setPreferredSize(new Dimension(80, 100));
+		setPreferredSize(new Dimension(80, 200));
 	}
 	public void setColor(Color c){
 		color = c;
@@ -639,8 +682,13 @@ class SamplePanel extends JPanel {
 		Graphics2D g2 = (Graphics2D)g;
 
 		g2.setPaint(color);
-		g2.setStroke(new BasicStroke(stroke));
-		g2.draw(new Line2D.Double(20.0d, 10.0d, 170.0d, 10.0d));
+		g2.setStroke(new BasicStroke(stroke+10));
+		g2.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)stroke+10));
+		g2.draw(new Line2D.Double(50.0d, 40.0d, 100.0d, 40.0d));
+		g2.drawString("あ",150,80);
+		g2.setStroke(new BasicStroke(1));
+		g2.setColor(Color.BLACK);
+		g2.draw(new Line2D.Double(145.0d, 20.0d, 145.0d, 80.0d));
 	}
 }
 
@@ -698,9 +746,8 @@ class SecondOperationPanel extends JPanel implements ActionListener {
 		}else if(e.getActionCommand() == "SAVE") {
 			drawPanel.saveImage();
 		}else {										// 数字だった場合
-			System.out.println(e.getActionCommand());
-			//drawPanel.setDrawMode(3);
-			//setStamp(e.getActionCommand());
+			drawPanel.setDrawMode(3);
+			drawPanel.setStamp(e.getActionCommand());
 		}
 	}
 
