@@ -13,17 +13,17 @@ import java.math.BigDecimal;
 
 // 線の情報を持つクラス
 class LineInfo {
-	private Point start;
-	private Point end;
+	private Point start = new Point();
+	private Point end = new Point();
 	private Color color;
 	private float stroke;
 	private boolean flag;			// 線の始点終点を判断する
-	private String text = "";
+	private String text = null;
+	private String imgInfo;
 	
 	// コンストラクタ
-	LineInfo(int x1, int y1, int x2, int y2,Color c,float s,boolean f,String str) {
-		start = new Point();
-		end = new Point();
+	// 線
+	LineInfo(int x1, int y1, int x2, int y2,Color c,float s, boolean f) {
 		color = new Color(c.getRed(),c.getGreen(),c.getBlue(),c.getAlpha());
 		flag = f;
 	
@@ -33,8 +33,29 @@ class LineInfo {
 		end.y = y2;
 
 		stroke = s + 10.0f;
+	}
+	// 文字
+	LineInfo(int x1, int y1, int x2, int y2, Color c,String str, float s, boolean f){
+		color = new Color(c.getRed(),c.getGreen(),c.getBlue(),c.getAlpha());
+		start.x = x1;
+		start.y = y1;
+		end.x = x2;
+		end.y = y2;
 
 		text = str;
+		stroke = s + 10.0f;
+		flag = f;
+	}
+	// スタンプ
+	LineInfo(int x1, int y1, int x2, int y2, String img, boolean f){
+		start.x = x1;
+		start.y = y1;
+		end.x = x2;
+		end.y = y2;
+
+
+		imgInfo = imgInfo;
+		flag = f;
 	}
 	// 以下、getシリーズ
 	public int getStartX() {
@@ -71,6 +92,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	public static final int FREE = 0;
 	public static final int LINE = 1;
 	public static final int TEXT = 2;
+	public static final int STAMP = 3;
 	int mode = FREE;
 
 	int x1,y1;
@@ -79,6 +101,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	float stroke;	// 線の太さ
 
 	String text;
+	String img;
 	boolean flag = true;	// 文字入力
 
 	private BufferedImage image;
@@ -102,13 +125,18 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 				break;
 			case TEXT:
 				this.mode = mode;
+			case STAMP:
+				this.mode = mode;
 			default:
 				break;
 		}
 	}
 
-	public void setText(String str){
+	public void setText(String str) {
 		text = str;
+	}
+	public void setImg(String str) {
+		img = str;
 	}
 
 	// 文字の色の設定
@@ -169,7 +197,6 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 
 		if(image != null){
 			try {
-				// readImage = ImageIO.read(new File(f.getPath()));
 				readImage = reSize(ImageIO.read(new File(f.getPath())),getWidth(),getHeight());
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -190,15 +217,14 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 
 		for(int i = 0; i < layers.size() ;i++ ) {
 			LineInfo data = (LineInfo)layers.get(i);
+			off.setColor(data.getColor());
 			if(data.getText() == null){
-				off.setColor(data.getColor());
 				off.setStroke(new BasicStroke(data.getStroke(),1,1));
 				off.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
 				Font font = new Font("ＭＳ ゴシック", Font.BOLD, (int)data.getStroke());
 				off.setFont(font);
 				off.drawString(data.getText(), data.getStartX(), data.getStartY());
-				System.out.println(i+",");
 			}
 		}
 
@@ -290,7 +316,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		case FREE:
 			x1 = e.getX();
 			y1 = e.getY();
-			layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke,true,null));
+			layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke,true));
 			repaint();
 			break;
 		case LINE:
@@ -301,7 +327,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		case TEXT:
 			x1 = e.getX();
 			y1 = e.getY();
-			layers.add(new LineInfo(x1,y1,x1,y1,getForeground(),stroke,true,text));
+			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, stroke, true));
 			flag = true;
 			repaint();
 		default:
@@ -313,11 +339,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	@Override public void mouseReleased(MouseEvent e) {
 		switch(mode) {
 			case LINE:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,true,null));
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), stroke, true));
 				x2 = x3 = -1;					// ラバーバンド描画消去処理を通らないように
 				break;
 			case TEXT:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,true,text));
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text,stroke, true));
 				flag = false;
 			case FREE:
 			default:
@@ -331,7 +357,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		e.consume();	
 		switch(mode) {
 			case FREE:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,false,null));
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,false));
 				x1 = e.getX();					// これが新たな始点
 				y1 = e.getY();
 				break;
@@ -342,7 +368,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 				y2 = e.getY();
 				break;
 			case TEXT:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(),getForeground(),stroke,false,text));
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, stroke, false));
 				flag = true;
 				x1 = e.getX();					// これが新たな始点
 				y1 = e.getY();
@@ -360,8 +386,8 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 
 		for(int i = 0; i < layers.size() ;i++ ) {
 			LineInfo data = (LineInfo)layers.get(i);
+			g2d.setColor(data.getColor());
 			if(data.getText() == null){
-				g2d.setColor(data.getColor());
 				g2d.setStroke(new BasicStroke(data.getStroke(),1,1));
 				g2d.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
@@ -485,69 +511,102 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	OperationPanel(DrawPanel panel) {
 		drawPanel = panel;
 
+		// モードの選択
+		JRadioButton free = new JRadioButton("FREE",true);
+		free.setMargin(new Insets(50, 0, 0, 0));
+		JRadioButton line = new JRadioButton("LINE");
+		line.setMargin(new Insets(50, 0, 0, 0));
+		JRadioButton letter = new JRadioButton("TEXT");
+		letter.setMargin(new Insets(10, 0, 0, 0));
+
+		// グループの作成
+		ButtonGroup group = new ButtonGroup();
+		group.add(free);
+		group.add(line);
+		group.add(letter);
+
 		// 色選択ボタン
 		JButton color = new JButton("COLOR");
 
-		JButton textButton = new JButton("GO");
 
 		// undoボタン
 		JButton undo = new JButton("UNDO");
-		undo.setPreferredSize(new Dimension(80, 100));
+		undo.setPreferredSize(new Dimension(80, 50));
+		// clearボタン
+		JButton clear = new JButton("CLEAR");
+		clear.setPreferredSize(new Dimension(70, 50));
 
-		// saveボタン
-		JButton save = new JButton("SAVE");
+		// 文字入力
+		JButton textButton = new JButton("GO");
+		text = new JTextField(10);
 
 		// 太さの変更
 		slider = new JSlider(1,80,1);
 
-		JButton letter = new JButton("GO");
-		text = new JTextField(10);
-
 		// ボタンの反応をつける
+		free.addActionListener(this);
+		line.addActionListener(this);
+		letter.addActionListener(this);
 		color.addActionListener(this);
 		undo.addActionListener(this);
+		clear.addActionListener(this);
 		textButton.addActionListener(this);
 		slider.addChangeListener(this);
-		letter.addActionListener(this);
 	
 		JPanel panel1 = new JPanel();
 		samplePanel = new SamplePanel();
 		JPanel panel2 = new JPanel();
-		JPanel panel4 = new JPanel();
+		JPanel panel3 = new JPanel();
 		sampleLabel = new JLabel("SAMPLE");
 
-		panel1.setLayout(new GridLayout(3,1));
-		panel1.add(color);
-		panel1.add(slider);
-		panel1.add(sampleLabel);
+		panel1.setLayout(new GridLayout(2,2));
+		panel1.add(free);
+		panel1.add(line);
+		panel1.add(letter);
 
-		panel2.setLayout(new GridLayout(4,1));
+		panel2.setLayout(new GridLayout(5,1));
 		panel2.add(text);
-		panel2.add(letter);
-		panel2.add(undo);
-		panel2.add(save);
+		panel2.add(textButton);
+		panel2.add(color);
+		panel2.add(slider);
+		panel2.add(sampleLabel);
+
+		panel3.setLayout(new FlowLayout());
+		panel3.add(undo);
+		panel3.add(clear);
 
 		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
 		this.add(panel1);
-		this.add(samplePanel);
 		this.add(panel2);
+		this.add(samplePanel);
+		this.add(panel3);
 
 
 	}
 	// 反応をつける
 	@Override public void actionPerformed(ActionEvent e) {
-		if(e.getActionCommand() == "COLOR") {		// 色を選ぶとき
+		if(e.getActionCommand() == "FREE") {			// FREE描画モード
+			drawPanel.setDrawMode(0);
+		}else if(e.getActionCommand() == "LINE") {		// LINE描画モード
+			drawPanel.setDrawMode(1);
+		}else if(e.getActionCommand() == "TEXT") {		// LINE描画モード
+			drawPanel.setDrawMode(2);
+		}else if(e.getActionCommand() == "COLOR") {		// 色を選ぶとき
 			JColorChooser colorchooser = new JColorChooser();
 			Color color = colorchooser.showDialog(this,"Choose a color!",Color.black);
 			drawPanel.setForegroundColor(color);
 			samplePanel.setColor(color);
 			sampleLabel.setForeground(color);
+		}else if(e.getActionCommand() == "GO"){
+			drawPanel.setDrawMode(2);
+			drawPanel.setText(text.getText());
 		}else if(e.getActionCommand() == "UNDO") {		// undo機能
 			drawPanel.undo();
-		}else if(e.getActionCommand() == "SAVE") {
-			drawPanel.saveImage();
-		}else if(e.getActionCommand() == "GO"){
-			drawPanel.setText(text.getText());
+		}else if(e.getActionCommand() == "CLEAR") {
+			int option = JOptionPane.showConfirmDialog(this, "clearすると元に戻りません。","Clear", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (option == JOptionPane.YES_OPTION){
+				drawPanel.clear();
+			}
 		}
 	}
 
@@ -585,18 +644,87 @@ class SamplePanel extends JPanel {
 	}
 }
 
+class SecondOperationPanel extends JPanel implements ActionListener {
+	DrawPanel drawPanel;
+	public static final int NUM = 15;			// スタンプの数
+
+	// コンストラクタ
+	SecondOperationPanel(DrawPanel panel) {
+		drawPanel = panel;
+		JButton[] button = new JButton[NUM];
+		ImageIcon[] icon = new ImageIcon[NUM];
+		JPanel panel1 = new JPanel();
+		JPanel panel2 = new JPanel();
+
+		panel1.setLayout(new GridLayout(5,3));
+		// スタンプ
+		for (int i=0; i<NUM; i++) {
+			icon[i] = new ImageIcon("stamp/stamp" + (i+1) + ".png");
+			button[i] = new JButton(String.valueOf(i+1),icon[i]);
+			button[i].setVerticalTextPosition(JButton.BOTTOM);
+			panel1.add(button[i]);
+			button[i].addActionListener(this);
+		}
+
+		// 画像選択
+		JButton photo = new JButton("PHOTO");
+		JButton nophoto = new JButton("NOPHOTO");
+
+		// saveボタン
+		JButton save = new JButton("SAVE");
+
+		// ボタンの反応をつける
+		photo.addActionListener(this);
+		nophoto.addActionListener(this);
+		save.addActionListener(this);
+	
+		
+		panel2.setLayout(new GridLayout(2,2));
+		panel2.add(photo);
+		panel2.add(nophoto);
+		panel2.add(save);
+
+		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
+		this.add(panel1);
+		this.add(panel2);
+
+	}
+	// 反応をつける
+	@Override public void actionPerformed(ActionEvent e) {
+		if(e.getActionCommand() == "PHOTO") {		// 写真選択
+			drawPanel.openImage();
+		}else if(e.getActionCommand() == "NO PHOTO") {
+			drawPanel.noopen();						// 写真をなくす
+		}else if(e.getActionCommand() == "SAVE") {
+			drawPanel.saveImage();
+		}else {										// 数字だった場合
+			System.out.println(e.getActionCommand());
+			//drawPanel.setDrawMode(3);
+			//setStamp(e.getActionCommand());
+		}
+	}
+
+}
 
 
 // メインのクラス
 public class Drawing {
 	public static void main(String[] args) {
 		MyJFrame frame = new MyJFrame();
+		JTabbedPane tabbedpane = new JTabbedPane();
+
 		DrawPanel drawPanel = new DrawPanel(frame);
 		frame.setDrawPanel(drawPanel);
+
 		OperationPanel operationPanel = new OperationPanel(drawPanel);
+		SecondOperationPanel secondOperationPanel = new SecondOperationPanel(drawPanel);
+
+		tabbedpane.addTab("1",operationPanel);
+		JPanel tabPanel1 = new JPanel();
+		tabbedpane.addTab("2",secondOperationPanel);
 
 		frame.getContentPane().add(drawPanel,BorderLayout.CENTER);
-		frame.getContentPane().add(operationPanel,BorderLayout.EAST);
+		frame.getContentPane().add(tabbedpane,BorderLayout.EAST);
 		frame.setVisible(true);	
 	}
 
