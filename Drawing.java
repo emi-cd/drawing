@@ -95,7 +95,7 @@ class LineInfo {
 }
 
 // 絵を描くパネル
-class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
+class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,ComponentListener {
 	// ここに描いた軌跡を保存していく
 	ArrayList<LineInfo> layers = new ArrayList<LineInfo>();
 	// モード
@@ -116,6 +116,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	boolean flag = true;	// 文字入力
 
 	private BufferedImage image;
+	private Color bgColor = new Color(255,255,255);
 	File f;
 	JFrame frame;
 
@@ -123,6 +124,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	DrawPanel(MyJFrame f){
 		addMouseMotionListener(this);
 		addMouseListener(this);
+		addComponentListener(this);
 		this.image = null;
 		frame = f;
 	}
@@ -156,6 +158,12 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 	// 文字の色の設定
 	public void setForegroundColor(Color color) {
 		setForeground(color);
+	}
+
+	// 背景色の設定
+	public void setBGColor(Color color) {
+		bgColor = color;
+		repaint();
 	}
 
 	// 文字の太さの設定
@@ -243,7 +251,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 		
 		Graphics2D off = readImage.createGraphics();
 		if(flag){
-			off.setBackground(Color.WHITE);
+			off.setBackground(bgColor);
 			off.clearRect(0, 0, getWidth(), getHeight());
 		}
 
@@ -383,39 +391,32 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 
 	@Override public void paintComponent(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
-		g2d.setBackground(Color.WHITE);
-		g2d.setColor(getForeground());
-
 
 		if(image != null){
-			int imageWidth = image.getWidth();
-			int imageHeight = image.getHeight();
-			int panelWidth = this.getWidth();
-			int panelHeight = this.getHeight();
-		
-			// 画像がコンポーネントの何倍の大きさか計算
-			int iH = (panelWidth * imageHeight / imageWidth);
-			int iW = (panelHeight * imageWidth / imageHeight);
+			int maxWidth = getWidth();
+			int maxHeight = getHeight();
 
-			if(panelWidth < panelHeight) {
-				if(panelHeight > imageHeight || imageWidth > panelWidth) {
-					g2d.drawImage(image, 0, 0, iW, panelHeight, this);
-				} else {
-					g2d.drawImage(image, 0, 0, panelWidth, iH, this);
-				}
-			}else{
-				if(panelWidth > imageWidth || panelHeight < imageHeight){
-					g2d.drawImage(image, 0, 0, panelWidth, iH, this);
-				}else{
-					g2d.drawImage(image, 0, 0, iW, panelHeight, this);
-				}
+			BigDecimal bdW = new BigDecimal(maxWidth);
+			bdW = bdW.divide(new BigDecimal(image.getWidth()), 8, BigDecimal.ROUND_HALF_UP);
+			BigDecimal bdH = new BigDecimal(maxHeight);
+			bdH = bdH.divide(new BigDecimal(image.getHeight()), 8, BigDecimal.ROUND_HALF_UP);
+			// 縦横比は変えずに最大幅、最大高さを超えないように比率を指定する
+			if (bdH.compareTo(bdW) < 0) {
+				maxHeight = -1;
 			}
+			else {
+				maxWidth = -1;
+			}
+
+			g2d.drawImage(image.getScaledInstance(maxWidth, maxHeight, Image.SCALE_SMOOTH), 0, 0, null);
+
 		}
 	}
 
 	// ペイント
 	@Override public void paint(Graphics g) {
 		this.paintComponent(g);
+		this.setBackground(bgColor);
 		Graphics2D g2d = (Graphics2D)g;
 
 		for(int i = 0; i < layers.size() ;i++ ) {
@@ -448,7 +449,12 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener {
 			}
 		}
 	}
-
+	@Override public void componentResized(ComponentEvent e) {
+		repaint();
+	}
+	@Override public void componentMoved(ComponentEvent e) {}
+	@Override public void componentHidden(ComponentEvent e) {}
+	@Override public void componentShown(ComponentEvent e) {}
 }
 
 // フレーム
@@ -471,7 +477,7 @@ class MyJFrame extends JFrame implements ActionListener {
     JMenu photo = new JMenu("PHOTO");
 
 	menubar.add(file);
-    JMenuItem newFile = new JMenuItem("NEW");
+    JMenuItem newFile = new JMenuItem("New Page");
     newFile.setMnemonic(KeyEvent.VK_N);
     newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
     JMenuItem save = new JMenuItem("SAVE");
@@ -519,7 +525,18 @@ class MyJFrame extends JFrame implements ActionListener {
 	}   
 
 	@Override public void actionPerformed(ActionEvent e) {
-		if(e.getActionCommand() == "SAVE") {
+		if(e.getActionCommand() == "New Page"){
+			int option = JOptionPane.showConfirmDialog(this, "新しいページを作ります。その前に保存しますか?","New Page", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if(option == JOptionPane.YES_OPTION){
+				drawPanel.saveImage();
+			}
+			option = JOptionPane.showConfirmDialog(this, "このページのデータは消えますがよろしいですか?","New Page", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if(option == JOptionPane.YES_OPTION){
+			drawPanel.setBGColor(Color.WHITE);
+			drawPanel.clear();
+			drawPanel.noopen();
+			}
+		}else if(e.getActionCommand() == "SAVE") {
 			drawPanel.saveImage();
 		}else if(e.getActionCommand() == "UNDO") {		// undo機能
 			drawPanel.undo();
@@ -539,6 +556,39 @@ class MyJFrame extends JFrame implements ActionListener {
 		}else if(e.getActionCommand() == "NO PHOTO") {
 			drawPanel.noopen();
 		}
+	}
+
+}
+
+
+class SamplePanel extends JPanel {
+	Color color;
+	float stroke;
+
+	SamplePanel(){
+		color = Color.BLACK;
+		stroke = 1;
+		setPreferredSize(new Dimension(80, 200));
+	}
+	public void setColor(Color c){
+		color = c;
+		repaint();
+	}
+	public void setStroke(float f){
+		stroke = f;
+		repaint();
+	}
+	public void paintComponent(Graphics g){
+		Graphics2D g2 = (Graphics2D)g;
+
+		g2.setPaint(color);
+		g2.setStroke(new BasicStroke(stroke+10));
+		g2.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)stroke+10));
+		g2.draw(new Line2D.Double(50.0d, 40.0d, 100.0d, 40.0d));
+		g2.drawString("あ",150,80);
+		g2.setStroke(new BasicStroke(1));
+		g2.setColor(Color.BLACK);
+		g2.draw(new Line2D.Double(145.0d, 20.0d, 145.0d, 80.0d));
 	}
 
 }
@@ -579,6 +629,10 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		JButton clear = new JButton("CLEAR");
 		clear.setPreferredSize(new Dimension(70, 50));
 
+		// saveボタン
+		JButton save = new JButton("SAVE");
+		save.setPreferredSize(new Dimension(100, 40));
+
 		// 文字入力
 		JButton textButton = new JButton("GO");
 		text = new JTextField(10);
@@ -593,6 +647,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		color.addActionListener(this);
 		undo.addActionListener(this);
 		clear.addActionListener(this);
+		save.addActionListener(this);
 		textButton.addActionListener(this);
 		slider.addChangeListener(this);
 	
@@ -600,13 +655,14 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		samplePanel = new SamplePanel();
 		JPanel panel2 = new JPanel();
 		JPanel panel3 = new JPanel();
+		JPanel panel4 = new JPanel();
 
 		panel1.setLayout(new GridLayout(1,3));
 		panel1.add(free);
 		panel1.add(line);
 		panel1.add(letter);
 
-		panel2.setLayout(new GridLayout(5,1));
+		panel2.setLayout(new GridLayout(4,1));
 		panel2.add(text);
 		panel2.add(textButton);
 		panel2.add(color);
@@ -616,12 +672,15 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		panel3.add(undo);
 		panel3.add(clear);
 
+		panel4.setLayout(new FlowLayout());
+		panel4.add(save);
+
 		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
 		this.add(panel1);
 		this.add(panel2);
 		this.add(samplePanel);
 		this.add(panel3);
-
+		this.add(panel4);
 
 	}
 	// 反応をつける
@@ -650,6 +709,8 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 			if (option == JOptionPane.YES_OPTION){
 				drawPanel.clear();
 			}
+		}else if(e.getActionCommand() == "SAVE") {
+			drawPanel.saveImage();
 		}
 	}
 
@@ -659,37 +720,6 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		samplePanel.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)slider.getValue()+10));
 	}
 
-}
-
-class SamplePanel extends JPanel {
-	Color color;
-	float stroke;
-
-	SamplePanel(){
-		color = Color.BLACK;
-		stroke = 1;
-		setPreferredSize(new Dimension(80, 200));
-	}
-	public void setColor(Color c){
-		color = c;
-		repaint();
-	}
-	public void setStroke(float f){
-		stroke = f;
-		repaint();
-	}
-	public void paintComponent(Graphics g){
-		Graphics2D g2 = (Graphics2D)g;
-
-		g2.setPaint(color);
-		g2.setStroke(new BasicStroke(stroke+10));
-		g2.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)stroke+10));
-		g2.draw(new Line2D.Double(50.0d, 40.0d, 100.0d, 40.0d));
-		g2.drawString("あ",150,80);
-		g2.setStroke(new BasicStroke(1));
-		g2.setColor(Color.BLACK);
-		g2.draw(new Line2D.Double(145.0d, 20.0d, 145.0d, 80.0d));
-	}
 }
 
 class SecondOperationPanel extends JPanel implements ActionListener {
@@ -702,7 +732,6 @@ class SecondOperationPanel extends JPanel implements ActionListener {
 		JButton[] button = new JButton[NUM];
 		ImageIcon[] icon = new ImageIcon[NUM];
 		JPanel panel1 = new JPanel();
-		JPanel panel2 = new JPanel();
 
 		panel1.setLayout(new GridLayout(5,3));
 		// スタンプ
@@ -714,40 +743,145 @@ class SecondOperationPanel extends JPanel implements ActionListener {
 			button[i].addActionListener(this);
 		}
 
-		// 画像選択
-		JButton photo = new JButton("PHOTO");
-		JButton nophoto = new JButton("NOPHOTO");
+		// undoボタン
+		JButton undo = new JButton("UNDO");
+		undo.setPreferredSize(new Dimension(80, 50));
+
+		// clearボタン
+		JButton clear = new JButton("CLEAR");
+		clear.setPreferredSize(new Dimension(70, 50));
 
 		// saveボタン
 		JButton save = new JButton("SAVE");
+		save.setPreferredSize(new Dimension(100, 40));
+
 
 		// ボタンの反応をつける
-		photo.addActionListener(this);
-		nophoto.addActionListener(this);
-		save.addActionListener(this);
-	
+		undo.addActionListener(this);
+		clear.addActionListener(this);
+		save.addActionListener(this);	
+
+		JPanel panel2 = new JPanel();
+		JPanel panel3 = new JPanel();
 		
-		panel2.setLayout(new GridLayout(2,2));
-		panel2.add(photo);
-		panel2.add(nophoto);
-		panel2.add(save);
+		panel2.setLayout(new FlowLayout());
+		panel2.add(undo);
+		panel2.add(clear);
+
+		panel3.setLayout(new FlowLayout());
+		panel3.add(save);
 
 		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
 		this.add(panel1);
 		this.add(panel2);
+		this.add(panel3);
 
 	}
 	// 反応をつける
 	@Override public void actionPerformed(ActionEvent e) {
-		if(e.getActionCommand() == "PHOTO") {		// 写真選択
-			drawPanel.openImage();
-		}else if(e.getActionCommand() == "NO PHOTO") {
-			drawPanel.noopen();						// 写真をなくす
+		if(e.getActionCommand() == "UNDO") {		// undo機能
+			drawPanel.undo();
+		}else if(e.getActionCommand() == "CLEAR") {
+			int option = JOptionPane.showConfirmDialog(this, "clearすると元に戻りません。","Clear", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (option == JOptionPane.YES_OPTION){
+				drawPanel.clear();
+			}
 		}else if(e.getActionCommand() == "SAVE") {
 			drawPanel.saveImage();
 		}else {										// 数字だった場合
 			drawPanel.setDrawMode(3);
 			drawPanel.setStamp(e.getActionCommand());
+		}
+	}
+
+}
+
+class ThirdOperationPanel extends JPanel implements ActionListener {
+	DrawPanel drawPanel;
+
+	// コンストラクタ
+	ThirdOperationPanel(DrawPanel panel) {
+		drawPanel = panel;
+
+		// 背景色
+		JButton color = new JButton("BG COLOR");
+
+		// 画像選択
+		JButton photo = new JButton("PHOTO");
+		photo.setPreferredSize(new Dimension(90, 80));
+		JButton nophoto = new JButton("NOPHOTO");
+		nophoto.setPreferredSize(new Dimension(90, 80));
+
+		// 新しいページ
+		JButton newPage = new JButton("New Page");
+		newPage.setPreferredSize(new Dimension(70, 100));
+
+		// clearボタン
+		JButton clear = new JButton("CLEAR");
+		clear.setPreferredSize(new Dimension(70, 50));
+
+		// saveボタン
+		JButton save = new JButton("SAVE");
+		save.setPreferredSize(new Dimension(70, 50));
+
+		// ボタンの反応をつける
+		color.addActionListener(this);
+		photo.addActionListener(this);
+		nophoto.addActionListener(this);
+		newPage.addActionListener(this);
+		clear.addActionListener(this);
+		save.addActionListener(this);
+
+		JPanel panel1 = new JPanel();
+		JPanel panel2 = new JPanel();
+		JPanel panel3 = new JPanel();
+
+		panel1.setLayout(new GridLayout(2,1));
+		panel1.add(color);
+		panel1.add(newPage);
+		
+		panel2.setLayout(new FlowLayout());
+		panel2.add(photo);
+		panel2.add(nophoto);
+
+		panel3.setLayout(new FlowLayout());
+		panel3.add(clear);
+		panel3.add(save);
+
+		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
+		this.add(panel1);
+		this.add(panel2);
+		this.add(panel3);
+
+	}
+	// 反応をつける
+	@Override public void actionPerformed(ActionEvent e) {
+		if(e.getActionCommand() == "BG COLOR") {		// 色を選ぶとき
+			JColorChooser colorchooser = new JColorChooser();
+			Color color = colorchooser.showDialog(this,"Choose a color!",Color.WHITE);
+			drawPanel.setBGColor(color);
+		}else if(e.getActionCommand() == "PHOTO") {		// 写真選択
+			drawPanel.openImage();
+		}else if(e.getActionCommand() == "NO PHOTO") {
+			drawPanel.noopen();						// 写真をなくす
+		}else if(e.getActionCommand() == "New Page"){
+			int option = JOptionPane.showConfirmDialog(this, "新しいページを作ります。その前に保存しますか?","New Page", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if(option == JOptionPane.YES_OPTION){
+				drawPanel.saveImage();
+			}
+			option = JOptionPane.showConfirmDialog(this, "このページのデータは消えますがよろしいですか?","New Page", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if(option == JOptionPane.YES_OPTION){
+			drawPanel.setBGColor(Color.WHITE);
+			drawPanel.clear();
+			drawPanel.noopen();
+			}
+		}else if(e.getActionCommand() == "CLEAR") {
+			int option = JOptionPane.showConfirmDialog(this, "clearすると元に戻りません。","Clear", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+			if (option == JOptionPane.YES_OPTION){
+				drawPanel.clear();
+			}
+		}else if(e.getActionCommand() == "SAVE") {
+			drawPanel.saveImage();
 		}
 	}
 
@@ -765,10 +899,11 @@ public class Drawing {
 
 		OperationPanel operationPanel = new OperationPanel(drawPanel);
 		SecondOperationPanel secondOperationPanel = new SecondOperationPanel(drawPanel);
+		ThirdOperationPanel thirdOperationPanel = new ThirdOperationPanel(drawPanel);
 
 		tabbedpane.addTab("1",operationPanel);
-		JPanel tabPanel1 = new JPanel();
 		tabbedpane.addTab("2",secondOperationPanel);
+		tabbedpane.addTab("3",thirdOperationPanel);
 
 		frame.getContentPane().add(drawPanel,BorderLayout.CENTER);
 		frame.getContentPane().add(tabbedpane,BorderLayout.EAST);
