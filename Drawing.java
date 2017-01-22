@@ -20,6 +20,7 @@ class LineInfo {
 	private float stroke;
 	private boolean flag;			// 線の始点終点を判断する
 	private String text = null;
+	private String font = null;
 	private BufferedImage stamp = null;
 	
 	// コンストラクタ
@@ -36,7 +37,7 @@ class LineInfo {
 		stroke = s + 10.0f;
 	}
 	// 文字
-	LineInfo(int x1, int y1, int x2, int y2, Color c,String str, float s, boolean f){
+	LineInfo(int x1, int y1, int x2, int y2, Color c, String str, String fo, float s, boolean f){
 		color = new Color(c.getRed(),c.getGreen(),c.getBlue(),c.getAlpha());
 		start.x = x1;
 		start.y = y1;
@@ -44,6 +45,7 @@ class LineInfo {
 		end.y = y2;
 
 		text = str;
+		font = fo;
 		stroke = s + 10.0f;
 		flag = f;
 	}
@@ -91,6 +93,9 @@ class LineInfo {
 	public BufferedImage getStamp(){
 		return stamp;
 	}
+	public String getFont(){
+		return font;
+	}
 
 }
 
@@ -112,8 +117,9 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 	float stroke;	// 線の太さ
 
 	String text;
+	String font;
 	String stamp;			// スタンプ画像のpathを収納
-	boolean flag = true;	// 文字入力
+	boolean flag = false;	// 文字入力
 
 	private BufferedImage image;
 	private Color bgColor = new Color(255,255,255);
@@ -155,6 +161,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		text = str;
 	}
 
+	// fontをセット
+	public void setFont(String str){
+		font = str;
+	}
+
 	// 文字の色の設定
 	public void setForegroundColor(Color color) {
 		setForeground(color);
@@ -177,7 +188,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 			for(int i = layers.size()-1; i >= 0; i--){
 				LineInfo data = (LineInfo)layers.get(i);
 				layers.remove(i);
-				if(data.getFlag()) {
+				if(data.getFlag() || layers.size() == 0) {
 					break;
 				}
 			}
@@ -264,8 +275,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				off.setStroke(new BasicStroke(data.getStroke(),1,1));
 				off.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
-				Font font = new Font("ＭＳ ゴシック", Font.BOLD, (int)data.getStroke());
-				off.setFont(font);
+				off.setFont(new Font(data.getFont(), Font.BOLD, (int)data.getStroke()));
 				off.drawString(data.getText(), data.getStartX(), data.getStartY());
 			}
 		}
@@ -318,7 +328,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		case TEXT:
 			x1 = e.getX();
 			y1 = e.getY();
-			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, stroke, true));
+			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, font, stroke, true));
 			flag = true;
 			repaint();
 			break;
@@ -342,7 +352,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				x2 = x3 = -1;					// ラバーバンド描画消去処理を通らないように
 				break;
 			case TEXT:
-				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text,stroke, true));
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text, font, stroke, true));
 				flag = false;
 				break;
 			case STAMP:
@@ -372,7 +382,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				y2 = e.getY();
 				break;
 			case TEXT:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, stroke, false));
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, font, stroke, false));
 				flag = true;
 				x1 = e.getX();					// これが新たな始点
 				y1 = e.getY();
@@ -428,8 +438,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				g2d.setStroke(new BasicStroke(data.getStroke(),1,1));
 				g2d.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
-				Font font = new Font("ＭＳ ゴシック", Font.BOLD, (int)data.getStroke());
-				g2d.setFont(font);
+				g2d.setFont(new Font(data.getFont(), Font.BOLD, (int)data.getStroke()));
 				g2d.drawString(data.getText(), data.getStartX(), data.getStartY());
 			}
 		}
@@ -583,9 +592,8 @@ class SamplePanel extends JPanel {
 
 		g2.setPaint(color);
 		g2.setStroke(new BasicStroke(stroke+10));
-		g2.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)stroke+10));
 		g2.draw(new Line2D.Double(50.0d, 40.0d, 100.0d, 40.0d));
-		g2.drawString("あ",150,80);
+		g2.drawString("A",150,80);
 		g2.setStroke(new BasicStroke(1));
 		g2.setColor(Color.BLACK);
 		g2.draw(new Line2D.Double(145.0d, 20.0d, 145.0d, 80.0d));
@@ -599,6 +607,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	JSlider slider;
 	SamplePanel samplePanel;
 	JTextField text;
+	JComboBox font;
 
 	// コンストラクタ
 	OperationPanel(DrawPanel panel) {
@@ -635,7 +644,11 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 
 		// 文字入力
 		JButton textButton = new JButton("GO");
-		text = new JTextField(10);
+		text = new JTextField("");
+
+		// Fontの設定
+		String fontNames[] = {"Serif","SansSerif","Monospaced"};		// エラー
+		font = new JComboBox(fontNames);
 
 		// 太さの変更
 		slider = new JSlider(1,80,1);
@@ -644,6 +657,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		free.addActionListener(this);
 		line.addActionListener(this);
 		letter.addActionListener(this);
+		font.addActionListener(this);
 		color.addActionListener(this);
 		undo.addActionListener(this);
 		clear.addActionListener(this);
@@ -662,9 +676,10 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		panel1.add(line);
 		panel1.add(letter);
 
-		panel2.setLayout(new GridLayout(4,1));
+		panel2.setLayout(new GridLayout(5,1));
 		panel2.add(text);
 		panel2.add(textButton);
+		panel2.add(font);
 		panel2.add(color);
 		panel2.add(slider);
 
@@ -690,9 +705,8 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		}else if(e.getActionCommand() == "LINE") {		// LINE描画モード
 			drawPanel.setDrawMode(1);
 		}else if(e.getActionCommand() == "TEXT") {		// LINE描画モード
-			if(text.getText() == null){
-				drawPanel.setText("");
-			}
+			drawPanel.setFont((String)font.getSelectedItem());
+			drawPanel.setText(text.getText());
 			drawPanel.setDrawMode(2);
 		}else if(e.getActionCommand() == "COLOR") {		// 色を選ぶとき
 			JColorChooser colorchooser = new JColorChooser();
@@ -711,13 +725,17 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 			}
 		}else if(e.getActionCommand() == "SAVE") {
 			drawPanel.saveImage();
+		}else {
+			drawPanel.setFont((String)font.getSelectedItem());
+			samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, (int)slider.getValue()+10));
+			samplePanel.repaint();
 		}
 	}
 
 	@Override public void stateChanged(ChangeEvent e) {
 		drawPanel.setStroke(slider.getValue());
 		samplePanel.setStroke(slider.getValue());
-		samplePanel.setFont(new Font("ＭＳ ゴシック", Font.BOLD, (int)slider.getValue()+10));
+		samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, (int)slider.getValue()+10));
 	}
 
 }
