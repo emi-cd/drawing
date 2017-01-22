@@ -113,6 +113,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 	public static final int LINE = 1;
 	public static final int TEXT = 2;
 	public static final int STAMP = 3;
+	public static final int SPUIT = 4;
 	int mode = FREE;
 
 	int x1,y1;
@@ -131,6 +132,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 	private Color bgColor = new Color(255,255,255);
 	File f;
 	JFrame frame;
+	SamplePanel samplePanel;
 
 	// コンストラクタ
 	DrawPanel(MyJFrame f){
@@ -143,18 +145,12 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 
 	// モードの選択
 	public void setDrawMode(int mode) {
-		switch(mode) {
-			case FREE:
-			case LINE:
-				this.mode = mode;
-				break;
-			case TEXT:
-				this.mode = mode;
-			case STAMP:
-				this.mode = mode;
-			default:
-				break;
-		}
+		this.mode = mode;
+	}
+
+	// samplepanelのセット(スポイトでの色の変化のため)
+	public void setSamplePanel(SamplePanel p){
+		samplePanel = p;
 	}
 
 	// スタンプのパスをセット
@@ -252,8 +248,8 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		return thumb;
 	}
 
-	// 画像を保存
-	public void saveImage(){
+	// 現在のBufferedImageを作成
+	public BufferedImage makeBufferedImage() {
 		BufferedImage readImage = null;
 		boolean flag = false;
 
@@ -290,7 +286,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				off.drawString(data.getText(), data.getStartX(), data.getStartY());
 			}
 		}
+		return readImage;
+	}
 
+	// 画像を保存
+	public void saveImage(){
 		String path = null;  
 		FileDialog fd = new FileDialog(frame , "名前を付けて保存" , FileDialog.SAVE);  
 		try{  
@@ -303,11 +303,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		}  
 		if (path != null){  
 			try {
-				boolean result = ImageIO.write(readImage, "jpg", new File(path));
+				boolean result = ImageIO.write(makeBufferedImage(), "jpg", new File(path));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}  		
+		}  
 	}
 
 	// 読み込んだ写真を消す
@@ -350,6 +350,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 			flag = true;
 			repaint();
 			break;
+		case SPUIT:
+			BufferedImage readImage = makeBufferedImage();
+			Color c = new Color(readImage.getRGB(e.getX(), e.getY()));
+			setForegroundColor(c);
+			samplePanel.setColor(c);
 		default:
 			break;
 		}
@@ -642,6 +647,10 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 
 		// 色選択ボタン
 		JButton color = new JButton("COLOR");
+		color.setPreferredSize(new Dimension(120, 40));
+		// 色を画面から持ってくる
+		JRadioButton spuit = new JRadioButton("SPUIT");
+		group.add(spuit);
 
 		// undoボタン
 		JButton undo = new JButton("UNDO");
@@ -695,6 +704,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		italic.addActionListener(this);
 		bold.addActionListener(this);
 		color.addActionListener(this);
+		spuit.addActionListener(this);
 		undo.addActionListener(this);
 		clear.addActionListener(this);
 		save.addActionListener(this);
@@ -703,10 +713,12 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	
 		JPanel panel1 = new JPanel();
 		samplePanel = new SamplePanel();
+		drawPanel.setSamplePanel(samplePanel);
 		JPanel panel2 = new JPanel();
 		JPanel panel3 = new JPanel();
 		JPanel panel4 = new JPanel();
 		JPanel fontMode = new JPanel();
+		JPanel colorPanel = new JPanel();
 
 		panel1.setLayout(new GridLayout(1,3));
 		panel1.add(free);
@@ -718,12 +730,16 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		fontMode.add(italic);
 		fontMode.add(bold);
 
+		colorPanel.setLayout(new FlowLayout());
+		colorPanel.add(color);
+		colorPanel.add(spuit);
+
 		panel2.setLayout(new GridLayout(6,1));
 		panel2.add(text);
 		panel2.add(textButton);
 		panel2.add(font);
 		panel2.add(fontMode);
-		panel2.add(color);
+		panel2.add(colorPanel);
 		panel2.add(slider);
 
 		panel3.setLayout(new FlowLayout());
@@ -756,6 +772,8 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 			Color color = colorchooser.showDialog(this,"Choose a color!",Color.black);
 			drawPanel.setForegroundColor(color);
 			samplePanel.setColor(color);
+		}else if(e.getActionCommand() == "SPUIT") {		// 色を選ぶとき
+			drawPanel.setDrawMode(4);
 		}else if(e.getActionCommand() == "GO"){
 			drawPanel.setDrawMode(2);
 			drawPanel.setText(text.getText());
