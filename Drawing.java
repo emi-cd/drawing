@@ -21,6 +21,7 @@ class LineInfo {
 	private boolean flag;			// 線の始点終点を判断する
 	private String text = null;
 	private String font = null;
+	private int fontMode;
 	private BufferedImage stamp = null;
 	
 	// コンストラクタ
@@ -37,7 +38,7 @@ class LineInfo {
 		stroke = s + 10.0f;
 	}
 	// 文字
-	LineInfo(int x1, int y1, int x2, int y2, Color c, String str, String fo, float s, boolean f){
+	LineInfo(int x1, int y1, int x2, int y2, Color c, String str, String fo, int fm, float s, boolean f){
 		color = new Color(c.getRed(),c.getGreen(),c.getBlue(),c.getAlpha());
 		start.x = x1;
 		start.y = y1;
@@ -46,6 +47,7 @@ class LineInfo {
 
 		text = str;
 		font = fo;
+		fontMode = fm;
 		stroke = s + 10.0f;
 		flag = f;
 	}
@@ -96,6 +98,9 @@ class LineInfo {
 	public String getFont(){
 		return font;
 	}
+	public int getFontMode(){
+		return fontMode;
+	}
 
 }
 
@@ -118,6 +123,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 
 	String text;
 	String font;
+	int fontMode;
 	String stamp;			// スタンプ画像のpathを収納
 	boolean flag = false;	// 文字入力
 
@@ -169,6 +175,11 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 	// 文字の色の設定
 	public void setForegroundColor(Color color) {
 		setForeground(color);
+	}
+
+	// fontmodeの設定
+	public void setFontMode(int num){
+		fontMode = num;
 	}
 
 	// 背景色の設定
@@ -275,7 +286,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				off.setStroke(new BasicStroke(data.getStroke(),1,1));
 				off.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
-				off.setFont(new Font(data.getFont(), Font.BOLD, (int)data.getStroke()));
+				off.setFont(new Font(data.getFont(), data.getFontMode(), (int)data.getStroke()));
 				off.drawString(data.getText(), data.getStartX(), data.getStartY());
 			}
 		}
@@ -328,7 +339,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		case TEXT:
 			x1 = e.getX();
 			y1 = e.getY();
-			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, font, stroke, true));
+			layers.add(new LineInfo(x1, y1, x1, y1, getForeground(), text, font, fontMode, stroke, true));
 			flag = true;
 			repaint();
 			break;
@@ -352,7 +363,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				x2 = x3 = -1;					// ラバーバンド描画消去処理を通らないように
 				break;
 			case TEXT:
-				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text, font, stroke, true));
+				layers.add(new LineInfo(x1, y1, e.getX(), e.getY(), getForeground(), text, font, fontMode, stroke, true));
 				flag = false;
 				break;
 			case STAMP:
@@ -382,7 +393,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				y2 = e.getY();
 				break;
 			case TEXT:
-				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, font, stroke, false));
+				layers.add(new LineInfo(x1,y1,e.getX(),e.getY(), getForeground(), text, font, fontMode, stroke, false));
 				flag = true;
 				x1 = e.getX();					// これが新たな始点
 				y1 = e.getY();
@@ -438,7 +449,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 				g2d.setStroke(new BasicStroke(data.getStroke(),1,1));
 				g2d.drawLine(data.getStartX(), data.getStartY(), data.getEndX(), data.getEndY());
 			} else if(data.getText() != null){
-				g2d.setFont(new Font(data.getFont(), Font.BOLD, (int)data.getStroke()));
+				g2d.setFont(new Font(data.getFont(), data.getFontMode(), (int)data.getStroke()));
 				g2d.drawString(data.getText(), data.getStartX(), data.getStartY());
 			}
 		}
@@ -608,6 +619,8 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	SamplePanel samplePanel;
 	JTextField text;
 	JComboBox font;
+	boolean flag = false;							// falseでPLANE,trueでITALIC
+	boolean boldFlag = false;						// trueでBOLD
 
 	// コンストラクタ
 	OperationPanel(DrawPanel panel) {
@@ -648,7 +661,27 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 
 		// Fontの設定
 		String fontNames[] = {"Serif","SansSerif","Monospaced"};		// エラー
+		// 物理フォントの一覧を取得する
+		//GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		//Font fonts[] = ge.getAllFonts();
+		//Vector<String> fontNames = new Vector<String>();
+		//for (int i = 0; i < fonts.length; i++ ){
+		//fontNames.addElement(fonts[i].getName());
+		//}
 		font = new JComboBox(fontNames);
+
+		// fontスタイルの設定
+		JRadioButton plane = new JRadioButton("PLANE",true);
+		plane.setMargin(new Insets(10, 0, 0, 0));
+		JRadioButton italic = new JRadioButton("ITALIC");
+		italic.setMargin(new Insets(10, 0, 0, 0));
+		JRadioButton bold = new JRadioButton("BOLD");
+		bold.setMargin(new Insets(10, 0, 0, 0));
+
+		// グループの作成
+		ButtonGroup group2 = new ButtonGroup();
+		group2.add(plane);
+		group2.add(italic);
 
 		// 太さの変更
 		slider = new JSlider(1,80,1);
@@ -658,6 +691,9 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		line.addActionListener(this);
 		letter.addActionListener(this);
 		font.addActionListener(this);
+		plane.addActionListener(this);
+		italic.addActionListener(this);
+		bold.addActionListener(this);
 		color.addActionListener(this);
 		undo.addActionListener(this);
 		clear.addActionListener(this);
@@ -670,16 +706,23 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		JPanel panel2 = new JPanel();
 		JPanel panel3 = new JPanel();
 		JPanel panel4 = new JPanel();
+		JPanel fontMode = new JPanel();
 
 		panel1.setLayout(new GridLayout(1,3));
 		panel1.add(free);
 		panel1.add(line);
 		panel1.add(letter);
 
-		panel2.setLayout(new GridLayout(5,1));
+		fontMode.setLayout(new GridLayout(1,3));
+		fontMode.add(plane);
+		fontMode.add(italic);
+		fontMode.add(bold);
+
+		panel2.setLayout(new GridLayout(6,1));
 		panel2.add(text);
 		panel2.add(textButton);
 		panel2.add(font);
+		panel2.add(fontMode);
 		panel2.add(color);
 		panel2.add(slider);
 
@@ -725,11 +768,33 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 			}
 		}else if(e.getActionCommand() == "SAVE") {
 			drawPanel.saveImage();
-		}else {
-			drawPanel.setFont((String)font.getSelectedItem());
-			samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, (int)slider.getValue()+10));
-			samplePanel.repaint();
+		}else if(e.getActionCommand() == "PLANE") {
+			flag = false;
+		}else if(e.getActionCommand() == "ITALIC") {
+			flag = true;
+		}else if(e.getActionCommand() == "BOLD") {
+			boldFlag = !boldFlag;
 		}
+		drawPanel.setFont((String)font.getSelectedItem());
+		if(flag){
+			if (boldFlag) {							// ITALICでBOLDの場合	
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD | Font.ITALIC, (int)slider.getValue()+10));
+				drawPanel.setFontMode(Font.BOLD | Font.ITALIC);
+			}else {
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.ITALIC, (int)slider.getValue()+10));
+				drawPanel.setFontMode(Font.ITALIC);
+			}
+		}else{
+			if(boldFlag){							// PLANEでBOLD
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, (int)slider.getValue()+10));
+				drawPanel.setFontMode(Font.BOLD);
+			}else {
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.PLAIN, (int)slider.getValue()+10));
+				drawPanel.setFontMode(Font.PLAIN);
+			}
+		}
+		samplePanel.repaint();
+
 	}
 
 	@Override public void stateChanged(ChangeEvent e) {
