@@ -35,7 +35,7 @@ class LineInfo {
 		end.x = x2;
 		end.y = y2;
 
-		stroke = s + 10.0f;
+		stroke = s + 5.0f;
 	}
 	// 文字
 	LineInfo(int x1, int y1, int x2, int y2, Color c, String str, String fo, int fm, float s, boolean f){
@@ -48,7 +48,7 @@ class LineInfo {
 		text = str;
 		font = fo;
 		fontMode = fm;
-		stroke = s + 10.0f;
+		stroke = s + 20.0f;
 		flag = f;
 	}
 	// スタンプ
@@ -193,7 +193,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 	public void undo() {
 		if(layers.size() > 0){
 			for(int i = layers.size()-1; i >= 0; i--){
-				LineInfo data = (LineInfo)layers.get(i);
+				LineInfo data = layers.get(i);
 				layers.remove(i);
 				if(data.getFlag() || layers.size() == 0) {
 					break;
@@ -229,19 +229,22 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 
 	// 写真サイズの変更
 	public BufferedImage reSize(BufferedImage image, int maxWidth, int maxHeight) {
-		// 縮小比率の計算
-		BigDecimal bdW = new BigDecimal(maxWidth);
-		bdW = bdW.divide(new BigDecimal(image.getWidth()), 8, BigDecimal.ROUND_HALF_UP);
-		BigDecimal bdH = new BigDecimal(maxHeight);
-		bdH = bdH.divide(new BigDecimal(image.getHeight()), 8, BigDecimal.ROUND_HALF_UP);
-		// 縦横比は変えずに最大幅、最大高さを超えないように比率を指定する
-		if (bdH.compareTo(bdW) < 0) {
-			maxHeight = -1;
+		try {
+			// 縮小比率の計算
+			BigDecimal bdW = new BigDecimal(maxWidth);
+			bdW = bdW.divide(new BigDecimal(image.getWidth()), 8, BigDecimal.ROUND_HALF_UP);
+			BigDecimal bdH = new BigDecimal(maxHeight);
+			bdH = bdH.divide(new BigDecimal(image.getHeight()), 8, BigDecimal.ROUND_HALF_UP);
+			// 縦横比は変えずに最大幅、最大高さを超えないように比率を指定する
+			if (bdH.compareTo(bdW) < 0) {
+				maxHeight = -1;
+			}
+			else {
+				maxWidth = -1;
+			}
+		} catch (Exception e) {
+			System.out.println("写真のサイズ変更でエラー:" + e);
 		}
-		else {
-			maxWidth = -1;
-		}
-
 		// Image -> BufferedImageの変換
 		BufferedImage thumb = new BufferedImage(getWidth(), getHeight(), image.getType());
 		thumb.getGraphics().drawImage(image.getScaledInstance(maxWidth, maxHeight, Image.SCALE_SMOOTH), 0, 0, null);
@@ -274,7 +277,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		}
 
 		for(int i = 0; i < layers.size() ;i++ ) {
-			LineInfo data = (LineInfo)layers.get(i);
+			LineInfo data = layers.get(i);
 			off.setColor(data.getColor());
 			if(data.getStamp() != null) {
 				off.drawImage(data.getStamp(),data.getStartX(), data.getStartY(), this);
@@ -355,6 +358,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 			Color c = new Color(readImage.getRGB(e.getX(), e.getY()));
 			setForegroundColor(c);
 			samplePanel.setColor(c);
+			break;
 		default:
 			break;
 		}
@@ -415,6 +419,8 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		repaint();
 	}
 
+	int maxWidth = getWidth();
+	int maxHeight = getHeight();
 	@Override public void paintComponent(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
 
@@ -446,7 +452,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		Graphics2D g2d = (Graphics2D)g;
 
 		for(int i = 0; i < layers.size() ;i++ ) {
-			LineInfo data = (LineInfo)layers.get(i);
+			LineInfo data = layers.get(i);
 			g2d.setColor(data.getColor());
 			if(data.getStamp() != null) {
 				g2d.drawImage(data.getStamp(),data.getStartX(), data.getStartY(), this);
@@ -460,7 +466,7 @@ class DrawPanel extends JPanel implements MouseListener,MouseMotionListener,Comp
 		}
 		if (mode == LINE) {
 			g2d.setColor(getBackground());
-			g2d.setStroke(new BasicStroke(stroke,1,1));
+			g2d.setStroke(new BasicStroke(stroke+5,1,1));
 			if (x3 != -1) {						// ドラッグの時のみ通る
 				g2d.drawLine(x1,y1,x3,y3);		// 前に描いた線を消す
 			}
@@ -497,54 +503,71 @@ class MyJFrame extends JFrame implements ActionListener {
 
 
 	JMenuBar menubar = new JMenuBar();
-    JMenu file = new JMenu("FILE");
-    JMenu mode = new JMenu("MODE");
-    JMenu photo = new JMenu("PHOTO");
+	JMenu file = new JMenu("FILE");
+	JMenu mode = new JMenu("MODE");
+	JMenu photo = new JMenu("BackGroubd");
 
 	menubar.add(file);
-    JMenuItem newFile = new JMenuItem("New Page");
-    newFile.setMnemonic(KeyEvent.VK_N);
-    newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
-    JMenuItem save = new JMenuItem("SAVE");
-    save.setMnemonic(KeyEvent.VK_S);
-    save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
-    JMenuItem undo = new JMenuItem("UNDO");
-    undo.setMnemonic(KeyEvent.VK_Z);
-    undo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK));
-    JMenuItem clear = new JMenuItem("CLEAR");
-    file.add(newFile);
-    file.add(save);
-    file.add(undo);
-    file.add(clear);
+	JMenuItem newFile = new JMenuItem("New Page");
+	newFile.setMnemonic(KeyEvent.VK_N);
+	newFile.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK));
+	JMenuItem save = new JMenuItem("SAVE");
+	save.setMnemonic(KeyEvent.VK_S);
+	save.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
+	JMenuItem undo = new JMenuItem("UNDO");
+	undo.setMnemonic(KeyEvent.VK_Z);
+	undo.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK));
+	JMenuItem clear = new JMenuItem("CLEAR");
+	file.add(newFile);
+	file.add(save);
+	file.add(undo);
+	file.add(clear);
 
 	menubar.add(mode);
-    JRadioButtonMenuItem free = new JRadioButtonMenuItem("FREE");
-    JRadioButtonMenuItem line = new JRadioButtonMenuItem("LINE");
-    JRadioButtonMenuItem text = new JRadioButtonMenuItem("TEXT");
-    free.setSelected(true);
-    ButtonGroup group = new ButtonGroup();
-    group.add(free);
-    group.add(line);
-    group.add(text);
-    mode.add(free);
-    mode.add(line);
-    mode.add(text);
+	JRadioButtonMenuItem free = new JRadioButtonMenuItem("FREE");
+	free.setMnemonic(KeyEvent.VK_F);
+	free.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK));
+	JRadioButtonMenuItem line = new JRadioButtonMenuItem("LINE");
+	line.setMnemonic(KeyEvent.VK_L);
+	line.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK));
+	JRadioButtonMenuItem text = new JRadioButtonMenuItem("TEXT");
+	JRadioButtonMenuItem spuit = new JRadioButtonMenuItem("SPUIT");
+	spuit.setMnemonic(KeyEvent.VK_G);
+	spuit.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_G, InputEvent.CTRL_DOWN_MASK));
+	free.setSelected(true);
+	ButtonGroup group = new ButtonGroup();
+	group.add(free);
+	group.add(line);
+	group.add(text);
+	group.add(spuit);
+	mode.add(free);
+	mode.add(line);
+	mode.add(text);
+	mode.add(spuit);
 
-    menubar.add(photo);
-    JMenuItem yesPhoto = new JMenuItem("PHOTO");
-    JMenuItem nophoto = new JMenuItem("NO PHOTO");
-    photo.add(yesPhoto);
-    photo.add(nophoto);
+	menubar.add(photo);
+	JMenuItem bgColor = new JMenuItem("BackGroundColor");
+	bgColor.setMnemonic(KeyEvent.VK_B);
+	bgColor.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_B, InputEvent.CTRL_DOWN_MASK));
+	JMenuItem yesPhoto = new JMenuItem("PHOTO");
+	yesPhoto.setMnemonic(KeyEvent.VK_P);
+	yesPhoto.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_P, InputEvent.CTRL_DOWN_MASK));
+	JMenuItem nophoto = new JMenuItem("NO PHOTO");
+	photo.add(bgColor);
+	photo.add(yesPhoto);
+	photo.add(nophoto);
 
-    setJMenuBar(menubar);
+	setJMenuBar(menubar);
 
-    newFile.addActionListener(this);
+	newFile.addActionListener(this);
 	save.addActionListener(this);
 	undo.addActionListener(this);
 	clear.addActionListener(this);
 	free.addActionListener(this);
 	line.addActionListener(this);
 	text.addActionListener(this);
+	spuit.addActionListener(this);
+	bgColor.addActionListener(this);
 	yesPhoto.addActionListener(this);
 	nophoto.addActionListener(this);
 	}   
@@ -576,6 +599,12 @@ class MyJFrame extends JFrame implements ActionListener {
 			drawPanel.setDrawMode(1);
 		}else if(e.getActionCommand() == "TEXT") {		// LINE描画モード
 			drawPanel.setDrawMode(2);
+		}else if(e.getActionCommand() == "SPUIT") {
+			drawPanel.setDrawMode(4);
+		}else if(e.getActionCommand() == "BackGroundColor") {
+			JColorChooser colorchooser = new JColorChooser();
+			Color color = colorchooser.showDialog(this,"Choose a color!",Color.WHITE);
+			drawPanel.setBGColor(color);
 		}else if(e.getActionCommand() == "PHOTO") {		// 写真選択
 			drawPanel.openImage();
 		}else if(e.getActionCommand() == "NO PHOTO") {
@@ -607,7 +636,7 @@ class SamplePanel extends JPanel {
 		Graphics2D g2 = (Graphics2D)g;
 
 		g2.setPaint(color);
-		g2.setStroke(new BasicStroke(stroke+10));
+		g2.setStroke(new BasicStroke(stroke+5));
 		g2.draw(new Line2D.Double(50.0d, 40.0d, 100.0d, 40.0d));
 		g2.drawString("A",150,80);
 		g2.setStroke(new BasicStroke(1));
@@ -623,7 +652,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	JSlider slider;
 	SamplePanel samplePanel;
 	JTextField text;
-	JComboBox font;
+	JComboBox<String> font;
 	boolean flag = false;							// falseでPLANE,trueでITALIC
 	boolean boldFlag = false;						// trueでBOLD
 
@@ -669,15 +698,19 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		text = new JTextField("");
 
 		// Fontの設定
-		String fontNames[] = {"Serif","SansSerif","Monospaced"};		// エラー
-		// 物理フォントの一覧を取得する
-		//GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		//Font fonts[] = ge.getAllFonts();
-		//Vector<String> fontNames = new Vector<String>();
-		//for (int i = 0; i < fonts.length; i++ ){
-		//fontNames.addElement(fonts[i].getName());
-		//}
-		font = new JComboBox(fontNames);
+		try {
+			String fontNames[] = {"Serif","SansSerif","Monospaced"};		// エラー
+			// 物理フォントの一覧を取得する
+			//GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+			//Font fonts[] = ge.getAllFonts();
+			//Vector<String> fontNames = new Vector<String>();
+			//for (int i = 0; i < fonts.length; i++ ){
+			//fontNames.addElement(fonts[i].getName());
+			//}
+			font = new JComboBox<String>(fontNames);
+		} catch (Exception e) {
+			System.out.println("Fontの選択でエラー:" + e);
+		}
 
 		// fontスタイルの設定
 		JRadioButton plane = new JRadioButton("PLANE",true);
@@ -796,18 +829,18 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 		drawPanel.setFont((String)font.getSelectedItem());
 		if(flag){
 			if (boldFlag) {							// ITALICでBOLDの場合	
-				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD | Font.ITALIC, (int)slider.getValue()+10));
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD | Font.ITALIC, slider.getValue()+20));
 				drawPanel.setFontMode(Font.BOLD | Font.ITALIC);
 			}else {
-				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.ITALIC, (int)slider.getValue()+10));
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.ITALIC, slider.getValue()+20));
 				drawPanel.setFontMode(Font.ITALIC);
 			}
 		}else{
 			if(boldFlag){							// PLANEでBOLD
-				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, (int)slider.getValue()+10));
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, slider.getValue()+20));
 				drawPanel.setFontMode(Font.BOLD);
 			}else {
-				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.PLAIN, (int)slider.getValue()+10));
+				samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.PLAIN, slider.getValue()+20));
 				drawPanel.setFontMode(Font.PLAIN);
 			}
 		}
@@ -818,7 +851,7 @@ class OperationPanel extends JPanel implements ActionListener,ChangeListener {
 	@Override public void stateChanged(ChangeEvent e) {
 		drawPanel.setStroke(slider.getValue());
 		samplePanel.setStroke(slider.getValue());
-		samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, (int)slider.getValue()+10));
+		samplePanel.setFont(new Font((String)font.getSelectedItem(), Font.BOLD, slider.getValue()+20));
 	}
 
 }
@@ -910,7 +943,7 @@ class ThirdOperationPanel extends JPanel implements ActionListener {
 		// 画像選択
 		JButton photo = new JButton("PHOTO");
 		photo.setPreferredSize(new Dimension(90, 80));
-		JButton nophoto = new JButton("NOPHOTO");
+		JButton nophoto = new JButton("NO PHOTO");
 		nophoto.setPreferredSize(new Dimension(90, 80));
 
 		// 新しいページ
@@ -993,8 +1026,8 @@ class ThirdOperationPanel extends JPanel implements ActionListener {
 public class Drawing {
 	public static void main(String[] args) {
 		MyJFrame frame = new MyJFrame();
-		JTabbedPane tabbedpane = new JTabbedPane();
 
+		JTabbedPane tabbedpane = new JTabbedPane();
 		DrawPanel drawPanel = new DrawPanel(frame);
 		frame.setDrawPanel(drawPanel);
 
@@ -1002,9 +1035,9 @@ public class Drawing {
 		SecondOperationPanel secondOperationPanel = new SecondOperationPanel(drawPanel);
 		ThirdOperationPanel thirdOperationPanel = new ThirdOperationPanel(drawPanel);
 
-		tabbedpane.addTab("1",operationPanel);
-		tabbedpane.addTab("2",secondOperationPanel);
-		tabbedpane.addTab("3",thirdOperationPanel);
+		tabbedpane.addTab("MODE",operationPanel);
+		tabbedpane.addTab("STAMP",secondOperationPanel);
+		tabbedpane.addTab("ELSE",thirdOperationPanel);
 
 		frame.getContentPane().add(drawPanel,BorderLayout.CENTER);
 		frame.getContentPane().add(tabbedpane,BorderLayout.EAST);
