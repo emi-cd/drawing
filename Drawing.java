@@ -938,7 +938,7 @@ class ThirdOperationPanel extends JPanel implements ActionListener {
 		drawPanel = panel;
 
 		// 背景色
-		JButton color = new JButton("BG COLOR");
+		JButton color = new JButton("BackGround Color");
 
 		// 画像選択
 		JButton photo = new JButton("PHOTO");
@@ -948,7 +948,7 @@ class ThirdOperationPanel extends JPanel implements ActionListener {
 
 		// 新しいページ
 		JButton newPage = new JButton("New Page");
-		newPage.setPreferredSize(new Dimension(70, 100));
+		newPage.setPreferredSize(new Dimension(100, 70));
 
 		// clearボタン
 		JButton clear = new JButton("CLEAR");
@@ -969,28 +969,32 @@ class ThirdOperationPanel extends JPanel implements ActionListener {
 		JPanel panel1 = new JPanel();
 		JPanel panel2 = new JPanel();
 		JPanel panel3 = new JPanel();
+		JPanel panel4 = new JPanel();
 
-		panel1.setLayout(new GridLayout(2,1));
+		panel1.setLayout(new GridLayout(1,1));
 		panel1.add(color);
-		panel1.add(newPage);
-		
-		panel2.setLayout(new FlowLayout());
-		panel2.add(photo);
-		panel2.add(nophoto);
 
+		panel2.setLayout(new FlowLayout());
+		panel2.add(newPage);
+		
 		panel3.setLayout(new FlowLayout());
-		panel3.add(clear);
-		panel3.add(save);
+		panel3.add(photo);
+		panel3.add(nophoto);
+
+		panel4.setLayout(new FlowLayout());
+		panel4.add(clear);
+		panel4.add(save);
 
 		this.setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));
 		this.add(panel1);
-		this.add(panel2);
 		this.add(panel3);
+		this.add(panel2);
+		this.add(panel4);
 
 	}
 	// 反応をつける
 	@Override public void actionPerformed(ActionEvent e) {
-		if(e.getActionCommand() == "BG COLOR") {		// 色を選ぶとき
+		if(e.getActionCommand() == "BackGround Color") {		// 色を選ぶとき
 			JColorChooser colorchooser = new JColorChooser();
 			Color color = colorchooser.showDialog(this,"Choose a color!",Color.WHITE);
 			drawPanel.setBGColor(color);
